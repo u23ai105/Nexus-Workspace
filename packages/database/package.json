@@ -1,0 +1,21 @@
+{
+  "name": "@nexus/database",
+  "version": "1.0.0",
+  "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc -w",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.16.1"
+  },
+  "devDependencies": {
+    "@nexus/config-typescript": "workspace:*",
+    "prisma": "^5.16.1",
+    "typescript": "^5.5.3"
+  }
+}

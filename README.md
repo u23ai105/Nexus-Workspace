@@ -91,26 +91,28 @@ graph TD
 
 2. **Install dependencies (Monorepo)**
    ```bash
-   npm install
+   pnpm install
    ```
 
-3. **Set up environment variables**
-   Copy `.env.example` to `.env` in the respective directories (`apps/web`, `apps/server`) and fill in your database URLs and API keys.
+3. **Build internal packages**
+   ```bash
+   pnpm run build
+   ```
 
-4. **Spin up local infrastructure (DB, Redis, Qdrant)**
+4. **Set up environment variables**
+   *(Note: Database & Auth configuration coming in Phase 2)*
+   Copy `.env.example` to `.env` in the respective directories (`apps/web`, `apps/server`) once created.
+
+5. **Spin up local infrastructure (DB, Redis, Qdrant)**
    ```bash
    docker-compose up -d
    ```
 
-5. **Run database migrations**
-   ```bash
-   npx prisma migrate dev
-   ```
-
 6. **Start the development servers**
    ```bash
-   npm run dev
+   pnpm run dev
    ```
+   *This triggers Turborepo to start the frontend, backend, and all package watchers simultaneously.*
 
 ---
 
