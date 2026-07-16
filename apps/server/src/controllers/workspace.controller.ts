@@ -43,7 +43,7 @@ export const createWorkspace = async (req: AuthRequest, res: Response) => {
     res.status(201).json({ workspace });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: error.errors });
+      return res.status(400).json({ error: error.issues });
     }
     console.error("Error creating workspace:", error);
     res.status(500).json({ error: 'Internal server error' });

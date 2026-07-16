@@ -377,3 +377,47 @@ This handles the logic for the workspaces.
 - We created specific route files (`auth.route.ts` and `workspace.route.ts`) to keep our URLs organized.
 - In `workspace.route.ts`, we applied the `authenticateJWT` bouncer to *every* route, ensuring no one can see or create workspaces without a valid token.
 - Finally, in `index.ts`, we loaded our `.env` variables, set up `helmet` (for basic HTTP security), enabled `cors` (so our React frontend running on port `5173` is allowed to talk to the backend on port `4000`), and mounted the API routes at `/auth` and `/api/workspaces`.
+
+---
+
+## Fixing Git State (`.gitignore`)
+
+When we tried to commit our code, Git accidentally staged every single file inside `node_modules` (thousands of files). We completely forgot to add a `.gitignore` file to the root of our monorepo!
+
+### Terminal Commands Ran
+```bash
+git rm -r --cached .
+git add .
+```
+**Explanation:** 
+- After creating a proper `.gitignore` file (which tells Git to ignore `node_modules/`, `.env`, and `dist/`), we ran `git add .` again. This time, Git completely ignored the massive module folders and only staged our actual source code!
+
+---
+
+## TypeScript Build Fixes (`pnpm run build`)
+
+When we first tested our workspace compilation by running `pnpm run build`, Turborepo threw two TypeScript errors in the `apps/server` package. Here is exactly what went wrong and how we fixed it:
+
+### 1. The Missing Database Link
+**The Error:** `Cannot find module '@nexus/database' or its corresponding type declarations.`
+**The Fix:** 
+We had built our `packages/database`, but we forgot to explicitly tell the server that it depends on it. 
+We opened `apps/server/package.json` and added:
+```json
+"dependencies": {
+  "@nexus/database": "workspace:*"
+}
+```
+**Explanation:** `workspace:*` is a special pnpm command that tells the server: *"Don't try to download this from the public internet. Look inside our monorepo folders and create a symlink to it directly."*
+
+### 2. The Zod Error API Change
+**The Error:** `Property 'errors' does not exist on type 'ZodError<unknown>'`
+**The Fix:**
+In our `auth.controller.ts` and `workspace.controller.ts`, we had a `catch` block that caught Zod validation errors and returned `error.errors`. 
+However, the newest version of Zod deprecated `.errors` in favor of `.issues` for stricter typing.
+We changed:
+`return res.status(400).json({ error: error.errors });` 
+to 
+`return res.status(400).json({ error: error.issues });`
+
+After making these two fixes and running `pnpm install` (to link the packages), `pnpm run build` completed with 0 errors across the entire monorepo!

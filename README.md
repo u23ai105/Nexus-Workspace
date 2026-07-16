@@ -138,7 +138,7 @@ nexus-workspace/
 
 ## 🗺️ Development Roadmap
 
-- [ ] **Phase 1: Foundation (Weeks 1-2)** - Monorepo setup, Auth (JWT/OAuth), PostgreSQL schema, basic Dashboard and Workspace CRUD.
+- [x] **Phase 1: Foundation (Weeks 1-2)** - Monorepo setup, Auth (JWT/OAuth), PostgreSQL schema, basic Dashboard and Workspace CRUD.
 - [ ] **Phase 2: Real-Time Engine (Weeks 3-4)** - Tiptap integration, Yjs setup, Socket.io presence, live collaborative editing.
 - [ ] **Phase 3: AI & RAG Integration (Weeks 5-6)** - Vector DB setup, document chunking pipeline, AI Chat interface, inline AI editor actions.
 - [ ] **Phase 4: Advanced Modules (Week 7)** - Kanban boards, Whiteboards, deep search, real-time notifications.

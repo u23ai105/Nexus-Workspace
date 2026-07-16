@@ -55,7 +55,7 @@ export const register = async (req: Request, res: Response) => {
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: error.errors });
+      return res.status(400).json({ error: error.issues });
     }
     console.error("Registration error:", error);
     res.status(500).json({ error: 'Internal server error' });
@@ -92,7 +92,7 @@ export const login = async (req: Request, res: Response) => {
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: error.errors });
+      return res.status(400).json({ error: error.issues });
     }
     console.error("Login error:", error);
     res.status(500).json({ error: 'Internal server error' });
