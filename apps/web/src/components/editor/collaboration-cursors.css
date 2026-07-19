@@ -1,0 +1,359 @@
+/* ============================================================
+   Nexus Collaboration Cursors — Step 2.4
+   Styles for remote user carets (vertical bar), floating name
+   labels, and selection highlights rendered by the
+   @tiptap/extension-collaboration-caret extension.
+   ============================================================ */
+
+/* ------------------------------------------------------------------
+   CARET  (the thin vertical blinking line at the cursor position)
+   Tiptap injects a <span class="collaboration-cursor__caret"> at
+   the exact character offset of the remote user's cursor.
+   We style it using a left border so it acts as a 1-2px tall bar.
+------------------------------------------------------------------ */
+.collaboration-cursor__caret {
+  /*
+    border-left is our "bar". The color comes from the inline style
+    that Tiptap sets: style="--cursor-color: #hexvalue".
+    We read it via color: var(--cursor-color).
+  */
+  border-left: 2px solid var(--cursor-color, #a855f7);
+  border-right: none;
+
+  /*
+    Negative margins collapse the space the border would otherwise
+    add so text alignment isn't affected by the cursor's presence.
+  */
+  margin-left: -1px;
+  margin-right: 0;
+
+  /* Cursor must sit above the text flow but below tooltips */
+  position: relative;
+
+  /* Don't intercept mouse events – the cursor is purely decorative */
+  pointer-events: none;
+
+  /* Prevent line-breaking oddities in tight text blocks */
+  word-break: normal;
+
+  /* Slow blink that mimics a real text cursor */
+  animation: nexus-caret-blink 1.1s ease-in-out infinite;
+}
+
+@keyframes nexus-caret-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  45%,
+  55% {
+    opacity: 0;
+  }
+}
+
+/* ------------------------------------------------------------------
+   LABEL  (the floating "username" bubble that appears above the caret)
+   Tiptap places a <span class="collaboration-cursor__label"> as the
+   first child inside the caret span.
+------------------------------------------------------------------ */
+.collaboration-cursor__label {
+  /* Pull the label out of normal flow and position above the caret */
+  position: absolute;
+
+  /*
+    Offset: sit just above the top of the caret line.
+    1.2em ≈ one line-height above. This keeps the label clear of
+    the text in the current line.
+  */
+  top: -1.6em;
+  left: -1px; /* Align with the left edge of the caret bar */
+
+  /* Pill-shaped badge look */
+  padding: 2px 7px 3px;
+  border-radius: 4px 4px 4px 0; /* Flat bottom-left creates a "pointer" feel */
+
+  /* Fill with the user's unique cursor color */
+  background-color: var(--cursor-color, #a855f7);
+  color: #ffffff;
+
+  /* Crisp, small label typography */
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.5;
+  white-space: nowrap; /* Never wrap the username onto two lines */
+
+  /* Decorative */
+  letter-spacing: 0.01em;
+
+  /* Don't block clicks or text selection in the editor */
+  pointer-events: none;
+  user-select: none;
+
+  /* Subtle drop shadow to lift the badge above the page */
+  box-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.25),
+    0 0 0 1px rgba(0, 0, 0, 0.08);
+
+  /* Smooth appear/disappear when a cursor enters or leaves the viewport */
+  opacity: 1;
+  transition:
+    opacity 0.15s ease,
+    transform 0.15s ease;
+
+  /* Layering: must sit above text highlights and ProseMirror selections */
+  z-index: 20;
+
+  /* Tiny upward nudge on entry (achieved via CSS animation) */
+  animation: nexus-label-appear 0.15s ease-out both;
+}
+
+@keyframes nexus-label-appear {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ------------------------------------------------------------------
+   SELECTION HIGHLIGHT
+   When a remote user selects a range of text, Tiptap wraps those
+   characters in a <span> with an inline background-color derived
+   from the user's cursor color. We apply a translucency to it so
+   the user's own text and selections remain visible underneath.
+------------------------------------------------------------------ */
+.ProseMirror .collaboration-cursor__selection {
+  /*
+    Tiptap sets background-color inline. We layer our own opacity
+    treatment via mix-blend-mode so overlapping selections from
+    multiple users are distinguishable.
+  */
+  opacity: 0.35;
+  border-radius: 2px;
+  mix-blend-mode: multiply; /* Works well on light backgrounds */
+}
+
+/* On dark-mode surfaces, 'screen' blending looks better */
+.dark .ProseMirror .collaboration-cursor__selection {
+  mix-blend-mode: screen;
+  opacity: 0.4;
+}
+
+/* ------------------------------------------------------------------
+   CARET CONTAINER — ensure ProseMirror allows absolute positioning
+   inside inline elements.
+   The .ProseMirror class is the root div that Tiptap renders. We
+   need inline cursors to allow their absolute-positioned labels to
+   escape the inline box.
+------------------------------------------------------------------ */
+.ProseMirror {
+  /*
+    Each paragraph/block must establish a new stacking context so
+    labels from carets at the start of a paragraph don't clip under
+    the toolbar or overflow outside the editor bounds.
+  */
+  position: relative;
+}
+
+/* Ensure inline caret spans don't collapse to zero width */
+.ProseMirror span.collaboration-cursor__caret {
+  display: inline;
+  position: relative;
+}
+
+/* ====================================================================
+   AUTHORSHIP HIGHLIGHT — Step 2.5
+   Styles for the AuthorHighlight Tiptap mark. Each <span> rendered by
+   the mark receives class="author-highlight" plus inline style for
+   --author-color and data attributes for the author's name.
+   ==================================================================== */
+
+/* ── Base style: colored underline ─────────────────────────────────── */
+.author-highlight {
+  /*
+    A 2px underline in the author's unique color.
+    We use border-bottom instead of text-decoration so we can control
+    exact spacing and animate it on hover.
+  */
+  border-bottom: 2px solid color-mix(in srgb, var(--author-color, #888) 75%, transparent);
+  padding-bottom: 1px;
+
+  /* Needed for the absolutely-positioned ::after tooltip */
+  position: relative;
+
+  /* Don't block text cursor in the editor */
+  cursor: text;
+
+  /* Smooth background reveal on hover */
+  transition: background-color 0.12s ease;
+
+  /* Slight rounding so the underline looks polished */
+  border-radius: 0 0 2px 2px;
+}
+
+/* ── Hover: tint the background in the author's color ─────────────── */
+.author-highlight:hover {
+  background-color: color-mix(in srgb, var(--author-color, #888) 14%, transparent);
+}
+
+/* ── Tooltip: slide up on hover to reveal author name ─────────────── */
+.author-highlight::after {
+  /*
+    The tooltip text comes from the data-author-name attribute set by the
+    AuthorHighlight extension's renderHTML function.
+  */
+  content: attr(data-author-name);
+
+  position: absolute;
+  /* Sit just above the text line */
+  bottom: calc(100% + 5px);
+  left: 0;
+
+  /* Pill-style badge in the author's color */
+  padding: 2px 7px 3px;
+  background: var(--author-color, #888);
+  color: #ffffff;
+
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+  border-radius: 4px 4px 4px 0; /* Bottom-left stays flat — subtle pointer feel */
+
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.2),
+    0 0 0 1px rgba(0, 0, 0, 0.06);
+
+  /* Hidden by default — animates in on hover */
+  opacity: 0;
+  transform: translateY(4px);
+  transition:
+    opacity 0.15s ease,
+    transform 0.15s ease;
+
+  /* Above text, below modals */
+  z-index: 30;
+
+  /* Don't capture mouse events */
+  pointer-events: none;
+}
+
+.author-highlight:hover::after {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ====================================================================
+   ONLINE BAR — Live presence strip above the editor
+   Shows a pulsing green dot + online count + colored user pills.
+   The bar is rendered by the <OnlineBar> React component in NexusEditor.
+   ==================================================================== */
+
+.online-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 16px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+  background: rgba(15, 23, 42, 0.4);
+  min-height: 38px;
+}
+
+/* ── Online count section ───────────────────────────────────────────── */
+.online-bar__count {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.online-bar__label {
+  font-size: 11px;
+  font-weight: 500;
+  color: rgba(148, 163, 184, 0.7);
+  white-space: nowrap;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* ── Pulsing green "live" indicator dot ─────────────────────────────── */
+.online-bar__pulse {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #22c55e; /* green-500 */
+  box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.5);
+  animation: online-pulse 2s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+@keyframes online-pulse {
+  0%   { box-shadow: 0 0 0 0    rgba(34, 197, 94, 0.5); }
+  60%  { box-shadow: 0 0 0 5px  rgba(34, 197, 94, 0);   }
+  100% { box-shadow: 0 0 0 0    rgba(34, 197, 94, 0);   }
+}
+
+/* ── Pills row ──────────────────────────────────────────────────────── */
+.online-bar__pills {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+/* ── Individual author pill ─────────────────────────────────────────── */
+.author-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px 2px 5px;
+  border-radius: 100px;
+  border: 1px solid color-mix(in srgb, var(--author-color, #888) 40%, transparent);
+  background: color-mix(in srgb, var(--author-color, #888) 12%, transparent);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  color: color-mix(in srgb, var(--author-color, #888) 90%, white);
+  animation: author-pill-appear 0.2s ease-out both;
+}
+
+@keyframes author-pill-appear {
+  from { opacity: 0; transform: scale(0.85); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+/* ── Colored dot inside each pill ──────────────────────────────────── */
+.author-pill__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--author-color, #888);
+  animation: author-dot-pulse 2.2s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+@keyframes author-dot-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.6; transform: scale(0.85); }
+}
+
+.author-pill__name {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── "(You)" suffix badge ───────────────────────────────────────────── */
+.author-pill__you {
+  opacity: 0.65;
+  font-weight: 400;
+  font-size: 10px;
+}
+

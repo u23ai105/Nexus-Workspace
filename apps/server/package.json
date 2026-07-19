@@ -16,7 +16,12 @@
     "dotenv": "^17.4.2",
     "express": "^4.19.2",
     "helmet": "^7.1.0",
+    "iconv-lite": "0.4.24",
     "jsonwebtoken": "^9.0.3",
+    "lib0": "^0.2.117",
+    "socket.io": "4.8.3",
+    "y-protocols": "^1.0.7",
+    "yjs": "^13.6.31",
     "zod": "^4.4.3"
   },
   "devDependencies": {
