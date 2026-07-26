@@ -424,6 +424,41 @@ After making these two fixes and running `pnpm install` (to link the packages), 
 
 ---
 
+## Fixing Database Connection Errors During Login (`apps/server/.env`)
+
+When we tried to test logging in and registering users, the database connection failed. Upon investigation, we found why:
+
+### The Problem
+Our Supabase database credentials (`DATABASE_URL` and `DIRECT_URL`) were originally stored in `packages/database/.env` when we created and migrated our database schema. 
+However, when the Node.js Express backend server (`apps/server`) boots up, it reads process environment variables from its own directory: `apps/server/.env`. 
+
+Because `apps/server/.env` only contained our `PORT`, `JWT_SECRET`, and `CLIENT_URL`, whenever the server tried to call Prisma (e.g., `prisma.user.findUnique`), Prisma looked for `process.env.DATABASE_URL`, found `undefined`, and crashed or threw a connection error!
+
+### The Solution
+We copied `DATABASE_URL` and `DIRECT_URL` from `packages/database/.env` directly into `apps/server/.env`:
+```env
+DATABASE_URL="postgresql://postgres.fjbswzymkojvykzbqhjx:[PASSWORD]@aws-1-ap-south-1.pooler.supabase.com:6543/postgres?pgbouncer=true"
+DIRECT_URL="postgresql://postgres.fjbswzymkojvykzbqhjx:[PASSWORD]@aws-1-ap-south-1.pooler.supabase.com:5432/postgres"
+```
+**Why this works:** In microservice and monorepo architectures, every standalone server application (like our Express API or a future worker service) must have access to the database credentials in its own runtime environment variables. Now when `apps/server` starts up, Prisma can successfully connect to our cloud Supabase pooler!
+
+### 2. Rectifying the Regional Pooler Error (`FATAL: tenant/user not found`)
+Even after copying the `.env` variables, when we tested user login, Prisma threw this error in the terminal:
+`FATAL: (ENOTFOUND) tenant/user postgres.fjbswzymkojvykzbqhjx not found`
+
+**The Root Cause:**
+Our original connection string attempted to route traffic through Supabase's regional AWS Mumbai pooler (`aws-1-ap-south-1.pooler.supabase.com:6543`). However, because Supabase enforces strict project-to-pooler mapping, if a project ID is routed through Supavisor or hosted on a different pooler node, connecting to a specific regional pooler domain will reject the authentication credentials.
+
+**The Solution:**
+We updated both `apps/server/.env` and `packages/database/.env` to connect directly to the database's universal domain on port 5432:
+```env
+DATABASE_URL="postgresql://postgres:[PASSWORD]@db.fjbswzymkojvykzbqhjx.supabase.co:5432/postgres"
+DIRECT_URL="postgresql://postgres:[PASSWORD]@db.fjbswzymkojvykzbqhjx.supabase.co:5432/postgres"
+```
+By connecting directly to `db.fjbswzymkojvykzbqhjx.supabase.co:5432`, we bypass regional pooler lookups completely. The database server directly authenticates the `postgres` user and processes queries instantly!
+
+---
+
 ## Phase 2 (Part 1): Tiptap + Yjs Client Integration
 
 ### 1. Connecting Tiptap to Socket.io (`CollaborativeEditor.tsx`)
