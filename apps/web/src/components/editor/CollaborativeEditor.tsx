@@ -17,6 +17,8 @@ interface CollaborativeEditorProps {
   token: string
   serverUrl: string
   documentTitle?: string
+  onRename?: (newTitle: string) => void
+  onBack?: () => void
 }
 
 export function CollaborativeEditor({
@@ -27,6 +29,8 @@ export function CollaborativeEditor({
   token,
   serverUrl,
   documentTitle = 'Untitled Document',
+  onRename,
+  onBack,
 }: CollaborativeEditorProps) {
   // ── Stable Yjs instances via ref (never destroyed during StrictMode remounts)
   //
@@ -226,6 +230,8 @@ export function CollaborativeEditor({
         awareness={awareness}
         user={{ name: userName, color: userColor }}
         documentTitle={documentTitle}
+        onRename={onRename}
+        onBack={onBack}
       />
     </div>
   )

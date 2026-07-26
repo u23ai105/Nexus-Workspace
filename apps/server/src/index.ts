@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import dotenv from 'dotenv';
 import authRoutes from './routes/auth.route';
 import workspaceRoutes from './routes/workspace.route';
+import documentRoutes from './routes/document.route';
 
 dotenv.config();
 
@@ -35,6 +36,7 @@ app.get('/health', (req: Request, res: Response) => {
 // API Routes
 app.use('/auth', authRoutes);
 app.use('/api/workspaces', workspaceRoutes);
+app.use('/api/documents', documentRoutes);
 
 // Start Server
 const server = app.listen(PORT, () => {

@@ -1068,8 +1068,55 @@ Followed by a similar plugin error when resolving `@tiptap/pm`.
   
   We kept the specific subpaths (e.g. `y-protocols/awareness`, `y-protocols/sync`, `@tiptap/pm/state`, etc.) in `optimizeDeps.include`, as these subpaths are fully exported and valid for pre-bundling.
 
-* **Verification**:
-  We ran `pnpm run dev` in the workspace root:
-  - **Command Operation**: Runs Turborepo to orchestrate the dev servers for all monorepo packages.
-  - **Result**: The backend server successfully booted on `http://localhost:4000` and the Vite frontend dev server booted successfully on `http://localhost:5173/`, without crashes.
   - **Port Redirection**: The browser active tab must be redirected to `http://localhost:5173/` instead of `http://localhost:5175/` (which was a fallback port used during previous port-locking issues).
+
+---
+
+## [Date: 2026-07-26] - Phase 3: Real-Time Document Persistence, CRDT Snapshotting & Workspace Dashboard
+
+In this major milestone, we transformed our ephemeral real-time collaboration engine into a full-fledged cloud-persistent workspace system. We introduced PostgreSQL binary persistence for Yjs CRDT states, smart debounce saving, a workspace document dashboard, inline renaming, and dirty state protection.
+
+### 1. Database Schema & Prisma Client Generation
+* **File Updated:** [schema.prisma](file:///Users/muzammilmohammad/Documents/CSAB/csab/Python/SDE%20Projects/Nexus%20workspace/packages/database/prisma/schema.prisma)
+* **Architectural Decisions:**
+  - We added a `Document` model in PostgreSQL with relations to `Workspace` and `User` (creator).
+  - Crucially, we stored the collaborative state in a `yjsState` column of type `Bytes?` (`BYTEA` in Postgres). Why binary bytes instead of plain text? Yjs uses Conflict-Free Replicated Data Types (CRDTs). The binary update state (`Uint8Array`) contains the full operation history, vector clocks, deleted character tombstones, and formatting marks. Storing raw text would discard this collaborative metadata, causing desynchronization when peers reconnect.
+  - We added `textContent String?` as a secondary denormalized field to enable lightning-fast full-text search across documents in the dashboard without having to instantiate or decode Yjs binary blobs in memory.
+  - We implemented soft-deletion via `isArchived Boolean @default(false)` so users can recover accidentally deleted documents from a Trash Bin before permanent destruction.
+
+### 2. Backend REST API & Controller Architecture
+* **Files Created:** [document.controller.ts](file:///Users/muzammilmohammad/Documents/CSAB/csab/Python/SDE%20Projects/Nexus%20workspace/apps/server/src/controllers/document.controller.ts), [document.route.ts](file:///Users/muzammilmohammad/Documents/CSAB/csab/Python/SDE%20Projects/Nexus%20workspace/apps/server/src/routes/document.route.ts)
+* **Line-by-Line & Logic Explanation:**
+  - `createDocument`: Checks if `title` is provided. If not, it executes a `prisma.document.count({ where: { workspaceId, title: { startsWith: 'Untitled' } } })` query. If `N` untitled documents exist, it automatically names the new document `Untitled N+1` (or `Untitled Document` for the first one), replicating the frictionless experience of Notion or Notepad.
+  - `getDocuments`: Accepts query parameters `workspaceId` and `isArchived` (boolean string). Filters documents and selects lightweight fields (`id`, `title`, `textContent`, `isArchived`, `updatedAt`, `creator`) while explicitly excluding `yjsState` to keep REST network payloads minimal and fast.
+  - `updateDocument`: Allows updating metadata (`title`, `isArchived`, `textContent`). Used during inline renaming in the editor or moving items to the trash bin.
+  - `deleteDocument`: Executes a permanent `prisma.document.delete({ where: { id } })` once an item is purged from the trash.
+
+### 3. Yjs Socket.io Room Lifecycle & PostgreSQL Synchronization
+* **File Updated:** [socket.ts](file:///Users/muzammilmohammad/Documents/CSAB/csab/Python/SDE%20Projects/Nexus%20workspace/apps/server/src/socket.ts)
+* **How It Works (Line-by-Line):**
+  - **Prisma Import & Save Timers Map:** We imported `prisma` and declared `const saveTimers = new Map<string, NodeJS.Timeout>()`. Why debounce? In real-time collaborative typing, users may generate 20–50 CRDT updates per second. Executing a PostgreSQL query for every keystroke would saturate the database pool.
+  - `scheduleSaveToDb(roomName, ydoc)`: Checks if a timer already exists in `saveTimers` for this room. If not, it sets a 3,000ms (3-second) timeout. When the timer fires, it calls `Y.encodeStateAsUpdate(ydoc)`, converts the `Uint8Array` to a Node `Buffer`, and executes `prisma.document.update({ where: { id }, data: { yjsState: buffer } })`.
+  - `flushSaveToDb(roomName, ydoc)`: Called when the last user disconnects from a room. It immediately clears any pending debounce timer and forces a synchronous/awaited save to Postgres before the room's Yjs instance is destroyed from memory.
+  - `getOrCreateRoom(roomName, documentId)`: Made `async`. When a room is created for the first time in server memory, it queries `prisma.document.findUnique({ select: { yjsState: true } })`. If a binary snapshot exists, it executes `Y.applyUpdate(ydoc, new Uint8Array(docRecord.yjsState))` to restore the full historical CRDT tree before any client joins.
+  - `socket.on('update')`: Whenever a client emits a CRDT update, we apply it to the server's in-memory `Y.Doc` and immediately trigger `scheduleSaveToDb(currentRoomName, room.ydoc)`.
+
+### 4. Workspace Document Dashboard UI & Interactive Cards
+* **Files Created:** [DocumentCard.tsx](file:///Users/muzammilmohammad/Documents/CSAB/csab/Python/SDE%20Projects/Nexus%20workspace/apps/web/src/components/dashboard/DocumentCard.tsx), [DocumentDashboard.tsx](file:///Users/muzammilmohammad/Documents/CSAB/csab/Python/SDE%20Projects/Nexus%20workspace/apps/web/src/components/dashboard/DocumentDashboard.tsx)
+* **UI & Aesthetics Features:**
+  - **Glassmorphism Sidebar & Grid:** Built using deep dark palettes (`bg-slate-950/80`, `bg-[#07070B]`), subtle borders (`border-slate-800/80`), and vibrant purple/indigo gradient accents with glowing drop shadows (`shadow-purple-500/25`).
+  - **Quick Actions Menu (`⋮`):** Each card features a dropdown menu supporting inline renaming, duplicating documents (creates a copy with `(Copy)` appended to title and duplicates text content), exporting to `.md` (Markdown Blob download) or `.html`, moving to trash, restoring from trash, or deleting forever.
+  - **Real-time Filter & Empty States:** Provides instant client-side search filtering across document titles and snippet previews, with custom-designed empty states for both active workspaces and the trash bin.
+
+### 5. Collaborative Editor Upgrade: Inline Renaming, Save Badge & Dirty State Protection
+* **Files Updated:** [NexusEditor.tsx](file:///Users/muzammilmohammad/Documents/CSAB/csab/Python/SDE%20Projects/Nexus%20workspace/apps/web/src/components/editor/NexusEditor.tsx), [CollaborativeEditor.tsx](file:///Users/muzammilmohammad/Documents/CSAB/csab/Python/SDE%20Projects/Nexus%20workspace/apps/web/src/components/editor/CollaborativeEditor.tsx), [App.tsx](file:///Users/muzammilmohammad/Documents/CSAB/csab/Python/SDE%20Projects/Nexus%20workspace/apps/web/src/App.tsx)
+* **Technical Implementation:**
+  - **Cloud Save Badge:** We added a listener to `ydoc.on('update', ...)`. When an update occurs locally (origin !== `'server'`), we set `saveStatus = 'saving'` (`🟡 Saving...`). After a 3.2-second timeout (matching the server debounce), it transitions back to `🟢 Saved to Cloud`.
+  - **Dirty State Protection:** We attached a `beforeunload` event listener to `window`. If `saveStatus === 'saving'` when a user attempts to close the browser tab or refresh, we call `e.preventDefault()` to trigger the standard browser warning dialog ("Changes you made may not be saved"). Similarly, clicking the `⬅ Dashboard` button while saving prompts a confirmation modal.
+  - **Inline Title Renaming:** The header displays the document title as a clickable element. Clicking transforms it into an auto-focused `<input>`. On submit or blur, it invokes the `onRename` callback, which updates state and sends a `PATCH /api/documents/:id` request to persist the new title in PostgreSQL.
+
+### 6. Full Monorepo Build & TypeScript Verification
+* We executed `pnpm run build` across the entire Turborepo workspace.
+* Corrected TypeScript imports (`import type { DocumentItem }` under `verbatimModuleSyntax`) and unused parameter lint rules (`_update` instead of `update`).
+* Result: All 4 packages (`@nexus/shared`, `@nexus/database`, `server`, and `web`) compiled with 0 errors.
+

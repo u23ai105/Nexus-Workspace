@@ -22,6 +22,8 @@ interface NexusEditorProps {
   awareness: Awareness
   user: { name: string; color: string }
   documentTitle: string
+  onRename?: (newTitle: string) => void
+  onBack?: () => void
 }
 
 // A single online user record extracted from the Yjs Awareness state map.
@@ -126,7 +128,7 @@ function OnlineBar({ users }: { users: OnlineUser[] }) {
 
 // ── Main Component: NexusEditor ────────────────────────────────────────────
 
-export function NexusEditor({ ydoc, awareness, user, documentTitle }: NexusEditorProps) {
+export function NexusEditor({ ydoc, awareness, user, documentTitle, onRename, onBack }: NexusEditorProps) {
   // ── Live user list from awareness ──────────────────────────────────────
   const onlineUsers = useAwarenessUsers(awareness)
 
@@ -202,13 +204,117 @@ export function NexusEditor({ ydoc, awareness, user, documentTitle }: NexusEdito
     [], // Stable — ydoc and awareness are created once per session in refs
   )
 
+  const [isRenaming, setIsRenaming] = useState(false)
+  const [titleInput, setTitleInput] = useState(documentTitle)
+  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved')
+
+  useEffect(() => {
+    setTitleInput(documentTitle)
+  }, [documentTitle])
+
+  useEffect(() => {
+    const handleDocUpdate = (_update: Uint8Array, origin: unknown) => {
+      if (origin !== 'server') {
+        setSaveStatus('saving')
+        const timer = setTimeout(() => {
+          setSaveStatus('saved')
+        }, 3200)
+        return () => clearTimeout(timer)
+      }
+    }
+    ydoc.on('update', handleDocUpdate)
+    return () => {
+      ydoc.off('update', handleDocUpdate)
+    }
+  }, [ydoc])
+
+  // Dirty state protection when attempting to close tab while saving
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (saveStatus === 'saving' || saveStatus === 'unsaved') {
+        e.preventDefault()
+        e.returnValue = ''
+      }
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [saveStatus])
+
+  const handleTitleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (titleInput.trim() && titleInput !== documentTitle && onRename) {
+      onRename(titleInput.trim())
+    }
+    setIsRenaming(false)
+  }
+
   const editor = useEditor({ extensions })
 
   return (
     <div className="nexus-editor">
-      {/* Document title */}
-      <div className="nexus-editor__doc-title">
-        <h2>{documentTitle}</h2>
+      {/* Top Header Bar with Back Button, Inline Title, and Status Badge */}
+      <div className="flex items-center justify-between px-6 py-3.5 bg-slate-950/80 border-b border-slate-800 backdrop-blur-md">
+        <div className="flex items-center space-x-4 flex-1 min-w-0 mr-4">
+          {onBack && (
+            <button
+              onClick={() => {
+                if (saveStatus === 'saving' && !confirm('Your recent edits are currently syncing to cloud. Leave anyway?')) {
+                  return
+                }
+                onBack()
+              }}
+              className="flex items-center space-x-1.5 text-xs text-slate-400 hover:text-white bg-slate-900 hover:bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-800 transition-all shrink-0"
+            >
+              <span>⬅</span>
+              <span>Dashboard</span>
+            </button>
+          )}
+
+          <div className="flex-1 min-w-0">
+            {isRenaming ? (
+              <form onSubmit={handleTitleSubmit}>
+                <input
+                  type="text"
+                  value={titleInput}
+                  onChange={(e) => setTitleInput(e.target.value)}
+                  onBlur={() => {
+                    if (titleInput.trim() && titleInput !== documentTitle && onRename) {
+                      onRename(titleInput.trim())
+                    }
+                    setIsRenaming(false)
+                  }}
+                  autoFocus
+                  className="bg-slate-900 text-white text-lg font-bold px-2.5 py-0.5 rounded-lg border border-purple-500 focus:outline-none w-full max-w-md"
+                />
+              </form>
+            ) : (
+              <div
+                onClick={() => setIsRenaming(true)}
+                className="group flex items-center space-x-2 cursor-pointer py-0.5 px-2 -ml-2 rounded-lg hover:bg-slate-900/80 transition-colors w-fit"
+                title="Click to rename document inline"
+              >
+                <h2 className="text-lg font-bold text-white truncate">{documentTitle}</h2>
+                <span className="text-xs text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity">✏️</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Live Cloud Save Status Badge */}
+        <div className="flex items-center space-x-3 shrink-0">
+          {saveStatus === 'saved' && (
+            <span className="inline-flex items-center space-x-1.5 text-xs font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded-full">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+              <span>🟢 Saved to Cloud</span>
+            </span>
+          )}
+          {saveStatus === 'saving' && (
+            <span className="inline-flex items-center space-x-1.5 text-xs font-semibold text-yellow-400 bg-yellow-500/10 border border-yellow-500/20 px-3 py-1 rounded-full">
+              <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 animate-ping" />
+              <span>🟡 Saving...</span>
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Live presence bar — shows online count + all connected authors */}

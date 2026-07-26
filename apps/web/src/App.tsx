@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react'
 import { CollaborativeEditor } from './components/editor/CollaborativeEditor'
+import { DocumentDashboard } from './components/dashboard/DocumentDashboard'
+import type { DocumentItem } from './components/dashboard/DocumentCard'
 import './App.css'
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:4000'
@@ -18,6 +20,9 @@ export default function App() {
   })
 
   // Form states
+  const [workspaces, setWorkspaces] = useState<{ id: string; name: string }[]>([])
+  const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(() => localStorage.getItem('nexus_workspace_id'))
+  const [selectedDoc, setSelectedDoc] = useState<DocumentItem | null>(null)
   const [isRegister, setIsRegister] = useState(false)
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -43,11 +48,61 @@ export default function App() {
     }
   }, [user])
 
+  useEffect(() => {
+    if (activeWorkspaceId) {
+      localStorage.setItem('nexus_workspace_id', activeWorkspaceId)
+    } else {
+      localStorage.removeItem('nexus_workspace_id')
+    }
+  }, [activeWorkspaceId])
+
+  // Fetch workspaces when authenticated
+  useEffect(() => {
+    if (!jwt || !user) return
+
+    const initWorkspaces = async () => {
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/workspaces`, {
+          headers: { Authorization: `Bearer ${jwt}` },
+        })
+        const data = await res.json()
+        if (res.ok) {
+          if (data.workspaces && data.workspaces.length > 0) {
+            setWorkspaces(data.workspaces)
+            if (!activeWorkspaceId || !data.workspaces.some((w: any) => w.id === activeWorkspaceId)) {
+              setActiveWorkspaceId(data.workspaces[0].id)
+            }
+          } else {
+            // Auto-create default Personal Workspace if none exist
+            const createRes = await fetch(`${BACKEND_URL}/api/workspaces`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${jwt}`,
+              },
+              body: JSON.stringify({ name: `${user.name}'s Workspace` }),
+            })
+            const createData = await createRes.json()
+            if (createRes.ok && createData.workspace) {
+              setWorkspaces([createData.workspace])
+              setActiveWorkspaceId(createData.workspace.id)
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch workspaces:', err)
+      }
+    }
+
+    initWorkspaces()
+  }, [jwt, user])
+
   const handleLogout = () => {
     setJwt(null)
     setUser(null)
     setError(null)
     setSuccessMsg(null)
+    setSelectedDoc(null)
   }
 
   const handleAuthSubmit = async (e: React.FormEvent) => {
@@ -106,14 +161,32 @@ export default function App() {
     return (
       <div className="flex flex-col h-screen overflow-hidden bg-slate-950 text-slate-100 font-sans">
         {/* Navigation / Header */}
-        <header className="flex justify-between items-center px-6 py-4 bg-slate-900/80 border-b border-slate-800 backdrop-blur-md">
+        <header className="flex justify-between items-center px-6 py-3.5 bg-slate-900/80 border-b border-slate-800 backdrop-blur-md shrink-0">
           <div className="flex items-center space-x-3">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-purple-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-purple-500/30">
               <span className="font-bold text-white text-base">N</span>
             </div>
             <div>
-              <h1 className="font-bold text-lg tracking-tight text-white">Nexus Workspace</h1>
-              <p className="text-[10px] text-slate-400 font-medium">Real-Time Rich Text Editor</p>
+              <h1 className="font-bold text-base tracking-tight text-white">Nexus Workspace</h1>
+              <div className="flex items-center space-x-2">
+                <span className="text-[10px] text-slate-400 font-medium">Workspace:</span>
+                {workspaces.length > 0 && (
+                  <select
+                    value={activeWorkspaceId || ''}
+                    onChange={(e) => {
+                      setActiveWorkspaceId(e.target.value)
+                      setSelectedDoc(null)
+                    }}
+                    className="bg-slate-950 border border-slate-800 text-[11px] font-semibold text-purple-300 rounded px-1.5 py-0.5 focus:outline-none focus:border-purple-500"
+                  >
+                    {workspaces.map((ws) => (
+                      <option key={ws.id} value={ws.id}>
+                        {ws.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
             </div>
           </div>
 
@@ -135,17 +208,44 @@ export default function App() {
           </div>
         </header>
 
-        {/* Editor Body */}
+        {/* Body (Dashboard or Collaborative Editor) */}
         <main className="flex-1 overflow-hidden relative">
-          <CollaborativeEditor
-            documentId="nexus-shared-doc-1"
-            userId={user.id}
-            userName={user.name}
-            userColor={user.color}
-            token={jwt}
-            serverUrl={BACKEND_URL}
-            documentTitle="💡 Collaborative Knowledge Base"
-          />
+          {selectedDoc ? (
+            <CollaborativeEditor
+              key={selectedDoc.id}
+              documentId={selectedDoc.id}
+              userId={user.id}
+              userName={user.name}
+              userColor={user.color}
+              token={jwt}
+              serverUrl={BACKEND_URL}
+              documentTitle={selectedDoc.title}
+              onBack={() => setSelectedDoc(null)}
+              onRename={(newTitle) => {
+                setSelectedDoc((prev) => (prev ? { ...prev, title: newTitle } : null))
+                // Also trigger background PATCH
+                fetch(`${BACKEND_URL}/api/documents/${selectedDoc.id}`, {
+                  method: 'PATCH',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${jwt}`,
+                  },
+                  body: JSON.stringify({ title: newTitle }),
+                }).catch(console.error)
+              }}
+            />
+          ) : activeWorkspaceId ? (
+            <DocumentDashboard
+              workspaceId={activeWorkspaceId}
+              token={jwt}
+              serverUrl={BACKEND_URL}
+              onSelectDocument={(doc) => setSelectedDoc(doc)}
+            />
+          ) : (
+            <div className="flex-1 flex items-center justify-center text-slate-500 text-xs">
+              Initializing workspace...
+            </div>
+          )}
         </main>
       </div>
     )
