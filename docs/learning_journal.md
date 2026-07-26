@@ -1116,7 +1116,42 @@ In this major milestone, we transformed our ephemeral real-time collaboration en
   - **Inline Title Renaming:** The header displays the document title as a clickable element. Clicking transforms it into an auto-focused `<input>`. On submit or blur, it invokes the `onRename` callback, which updates state and sends a `PATCH /api/documents/:id` request to persist the new title in PostgreSQL.
 
 ### 6. Full Monorepo Build & TypeScript Verification
-* We executed `pnpm run build` across the entire Turborepo workspace.
-* Corrected TypeScript imports (`import type { DocumentItem }` under `verbatimModuleSyntax`) and unused parameter lint rules (`_update` instead of `update`).
 * Result: All 4 packages (`@nexus/shared`, `@nexus/database`, `server`, and `web`) compiled with 0 errors.
+
+---
+
+## [Date: 2026-07-27] - Monorepo Performance Analysis: Why Dev Server Reloading Can Be Slow
+
+During development, when executing `pnpm run dev` in the root workspace, notice log messages like:
+```
+server:dev: [INFO] 00:24:03 Restarting: /Users/.../packages/database/dist/index.js has been modified
+```
+Followed by a multi-second delay before the Express and Socket.io server is back online.
+
+### 1. Root Causes of Slow Reloading in Monorepos
+
+#### A. Cascade Watcher Triggers (The Why)
+In our Turborepo dev workflow, multiple background watch compilers run simultaneously:
+1. `@nexus/shared:dev` runs `tsc --watch`.
+2. `@nexus/database:dev` runs `prisma generate` and `tsc --watch`.
+3. `server:dev` runs `ts-node-dev --respawn --transpile-only src/index.ts`.
+
+When any file is touched or re-checked by TypeScript in `packages/database`, the compiler emits or touches files in `packages/database/dist/index.js`. Because `apps/server` depends on `@nexus/database` via `workspace:*`, `ts-node-dev` monitors those linked `dist` files. The moment a modification timestamp changes in the workspace dependency tree, `ts-node-dev` sends a SIGTERM signal to kill the active server process and initiates a full respawn (`Restarting: ...`).
+
+#### B. Process Boot & Transpilation Overhead (`ts-node` vs. esbuild)
+`ts-node-dev` is built on top of `ts-node` and standard Node.js module resolution:
+- **On-the-fly Compilation:** Even with `--transpile-only` enabled, `ts-node` intercepts Node's `require()` and `import` calls at runtime, parsing TypeScript syntax via the official JavaScript-based TypeScript compiler engine. This adds noticeable CPU and filesystem latency on every startup.
+- **Modern Alternative:** Next-generation TypeScript runners like `tsx` (powered by `esbuild` written in Go) or Node v22+ native `--experimental-strip-types` perform transpilation 10x–50x faster (usually under 50–100ms compared to 2–4 seconds for `ts-node`).
+
+#### C. Prisma ORM Engine & Cloud Database Connection Pooling
+When `server:dev` respawns, it must re-initialize the backend runtime from zero:
+1. **Prisma Rust Engine:** `@prisma/client` loads a native binary query engine into memory.
+2. **TLS/TCP Handshake:** The server initiates a new connection pool to the remote Supabase PostgreSQL pooler (`aws-1-ap-south-1.pooler.supabase.com` on port 6543). Establishing SSL handshakes with cloud databases across the network takes 1–2 seconds.
+3. **Socket Port Rebinding:** If the previous process took half a second to cleanly release port `4000`, the new process must wait or retry before binding to the socket.
+
+### 2. Best Practices for Faster Dev Iteration
+1. **Ignore Compiled Dist Folders in Watchers:** Configuring `--ignore-watch node_modules` and ignoring `dist/` outputs when working exclusively within the server codebase prevents cascade restarts triggered solely by background declaration builds.
+2. **Migrate to High-Speed Loaders:** Replacing `ts-node-dev` with `tsx watch src/index.ts` in `apps/server/package.json` eliminates TypeScript transpilation bottlenecks during development.
+3. **Connection Cleanup:** Ensuring graceful shutdown handlers (`process.on('SIGTERM', () => prisma.$disconnect())`) close DB connection pools immediately upon reload requests.
+
 

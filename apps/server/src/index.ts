@@ -46,3 +46,19 @@ const server = app.listen(PORT, () => {
 // Socket.io real-time engine
 import { createSocketServer } from './socket';
 createSocketServer(server);
+
+// Graceful shutdown handlers for fast and clean dev reloads
+import { prisma } from '@nexus/database';
+
+const shutdown = async () => {
+  console.log('[Server] Graceful shutdown initiated...');
+  server.close(() => {
+    console.log('[Server] HTTP server closed.');
+  });
+  await prisma.$disconnect();
+  console.log('[Server] Database pool disconnected.');
+  process.exit(0);
+};
+
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);
