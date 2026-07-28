@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { CollaborativeEditor } from './components/editor/CollaborativeEditor'
 import { DocumentDashboard } from './components/dashboard/DocumentDashboard'
+import { Home } from './components/home/Home'
 import type { DocumentItem } from './components/dashboard/DocumentCard'
 import './App.css'
 
@@ -69,9 +70,6 @@ export default function App() {
         if (res.ok) {
           if (data.workspaces && data.workspaces.length > 0) {
             setWorkspaces(data.workspaces)
-            if (!activeWorkspaceId || !data.workspaces.some((w: any) => w.id === activeWorkspaceId)) {
-              setActiveWorkspaceId(data.workspaces[0].id)
-            }
           } else {
             // Auto-create default Personal Workspace if none exist
             const createRes = await fetch(`${BACKEND_URL}/api/workspaces`, {
@@ -96,6 +94,46 @@ export default function App() {
 
     initWorkspaces()
   }, [jwt, user])
+
+  const handleCreateWorkspace = async (name: string) => {
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/workspaces`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${jwt}`,
+        },
+        body: JSON.stringify({ name }),
+      })
+      const data = await res.json()
+      if (res.ok && data.workspace) {
+        setWorkspaces((prev) => [...prev, data.workspace])
+        setActiveWorkspaceId(data.workspace.id)
+      }
+    } catch (err) {
+      console.error('Failed to create workspace', err)
+    }
+  }
+
+  const handleDeleteWorkspace = async (id: string) => {
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/workspaces/${id}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${jwt}`,
+        },
+      })
+      if (res.ok) {
+        setWorkspaces((prev) => prev.filter((w) => w.id !== id))
+        if (activeWorkspaceId === id) {
+          setActiveWorkspaceId(null)
+          setSelectedDoc(null)
+        }
+      }
+    } catch (err) {
+      console.error('Failed to delete workspace', err)
+    }
+  }
 
   const handleLogout = () => {
     setJwt(null)
@@ -158,50 +196,67 @@ export default function App() {
 
   // ── Authenticated Mode ──────────────────────────────────────────────────
   if (jwt && user) {
+    const activeWorkspace = workspaces.find((w) => w.id === activeWorkspaceId)
+
     return (
-      <div className="flex flex-col h-screen overflow-hidden bg-slate-950 text-slate-100 font-sans">
+      <div className="flex flex-col h-screen overflow-hidden bg-background text-foreground font-sans selection:bg-tint-orange/30">
         {/* Navigation / Header */}
-        <header className="flex justify-between items-center px-6 py-3.5 bg-slate-900/80 border-b border-slate-800 backdrop-blur-md shrink-0">
+        <header className="flex justify-between items-center px-6 py-3.5 bg-card/60 border-b border-border/60 backdrop-blur-md shrink-0 relative z-20 shadow-sm">
           <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-purple-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-purple-500/30">
-              <span className="font-bold text-white text-base">N</span>
-            </div>
-            <div>
-              <h1 className="font-bold text-base tracking-tight text-white">Nexus Workspace</h1>
-              <div className="flex items-center space-x-2">
-                <span className="text-[10px] text-slate-400 font-medium">Workspace:</span>
-                {workspaces.length > 0 && (
+            <button 
+              onClick={() => {
+                setActiveWorkspaceId(null)
+                setSelectedDoc(null)
+              }}
+              className="w-8 h-8 rounded-lg bg-foreground flex items-center justify-center hover:scale-105 transition-transform"
+            >
+              <span className="font-bold text-background text-base">N</span>
+            </button>
+            <div className="flex items-center space-x-2">
+              <button 
+                onClick={() => {
+                  setActiveWorkspaceId(null)
+                  setSelectedDoc(null)
+                }}
+                className="font-semibold text-base tracking-tight text-foreground hover:text-tint-orange transition-colors"
+              >
+                Nexus
+              </button>
+              
+              {activeWorkspace && (
+                <>
+                  <span className="text-muted-foreground">/</span>
                   <select
                     value={activeWorkspaceId || ''}
                     onChange={(e) => {
                       setActiveWorkspaceId(e.target.value)
                       setSelectedDoc(null)
                     }}
-                    className="bg-slate-950 border border-slate-800 text-[11px] font-semibold text-purple-300 rounded px-1.5 py-0.5 focus:outline-none focus:border-purple-500"
+                    className="bg-transparent text-sm font-medium text-muted-foreground hover:text-foreground cursor-pointer focus:outline-none"
                   >
                     {workspaces.map((ws) => (
-                      <option key={ws.id} value={ws.id}>
+                      <option key={ws.id} value={ws.id} className="bg-card text-foreground">
                         {ws.name}
                       </option>
                     ))}
                   </select>
-                )}
-              </div>
+                </>
+              )}
             </div>
           </div>
 
           <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-2 bg-slate-950/80 border border-slate-800/80 px-3 py-1.5 rounded-full">
+            <div className="flex items-center space-x-2 bg-muted/40 border border-border/50 px-3 py-1.5 rounded-full">
               <span 
-                className="w-2.5 h-2.5 rounded-full border border-white/20" 
+                className="w-2.5 h-2.5 rounded-full border border-background" 
                 style={{ backgroundColor: user.color }} 
               />
-              <span className="text-xs font-semibold text-slate-200">{user.name}</span>
+              <span className="text-xs font-medium text-foreground">{user.name}</span>
             </div>
 
             <button
               onClick={handleLogout}
-              className="text-xs bg-slate-800/60 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/20 text-slate-300 border border-slate-700/50 px-3 py-1.5 rounded-lg transition-all duration-200"
+              className="text-xs bg-muted/40 hover:bg-tint-red/10 hover:text-tint-red text-muted-foreground border border-border/50 px-3 py-1.5 rounded-md transition-all duration-200"
             >
               Log Out
             </button>
@@ -209,7 +264,7 @@ export default function App() {
         </header>
 
         {/* Body (Dashboard or Collaborative Editor) */}
-        <main className="flex-1 overflow-hidden relative">
+        <main className="flex-1 overflow-hidden relative z-10">
           {selectedDoc ? (
             <CollaborativeEditor
               key={selectedDoc.id}
@@ -223,7 +278,6 @@ export default function App() {
               onBack={() => setSelectedDoc(null)}
               onRename={(newTitle) => {
                 setSelectedDoc((prev) => (prev ? { ...prev, title: newTitle } : null))
-                // Also trigger background PATCH
                 fetch(`${BACKEND_URL}/api/documents/${selectedDoc.id}`, {
                   method: 'PATCH',
                   headers: {
@@ -242,9 +296,13 @@ export default function App() {
               onSelectDocument={(doc) => setSelectedDoc(doc)}
             />
           ) : (
-            <div className="flex-1 flex items-center justify-center text-slate-500 text-xs">
-              Initializing workspace...
-            </div>
+            <Home 
+              workspaces={workspaces}
+              user={user}
+              onSelectWorkspace={(id) => setActiveWorkspaceId(id)}
+              onCreateWorkspace={handleCreateWorkspace}
+              onDeleteWorkspace={handleDeleteWorkspace}
+            />
           )}
         </main>
       </div>

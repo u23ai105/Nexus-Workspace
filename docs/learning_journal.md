@@ -1154,4 +1154,42 @@ When `server:dev` respawns, it must re-initialize the backend runtime from zero:
 2. **Migrate to High-Speed Loaders:** Replacing `ts-node-dev` with `tsx watch src/index.ts` in `apps/server/package.json` eliminates TypeScript transpilation bottlenecks during development.
 3. **Connection Cleanup:** Ensuring graceful shutdown handlers (`process.on('SIGTERM', () => prisma.$disconnect())`) close DB connection pools immediately upon reload requests.
 
+---
 
+## [Date: 2026-07-28] - Phase 3.5: Minimal & Elegant UI Overhaul
+
+### 1. The Pivot from Glassmorphism to Minimal Design
+Based on user feedback, the initial "glassmorphism" aesthetic (translucent dark purple backgrounds, heavy glowing drop shadows, and complex borders) was deemed too "flashy" and visually exhausting for a professional productivity tool. We executed a full UI overhaul across the `apps/web` workspace to adopt a minimal, highly functional design system heavily inspired by Notion and Linear.
+
+### 2. Implementation Strategy: CSS Variables and RGB
+* **Global Theme (`index.css`):** We replaced hard-coded Tailwind classes with a robust CSS variable system using RGB channels (e.g., `--background: 255 255 255;`). This allows us to use Tailwind's opacity modifier syntax (`bg-background/50`).
+* **System Preference Theming:** We abandoned the `class`-based dark mode strategy in `tailwind.config.js` and implemented `darkMode: "media"`. We utilized the native `@media (prefers-color-scheme: dark)` CSS media query in `index.css` to seamlessly respect the user's OS-level theme preference.
+* **Warm Complementary Accents:** To maintain elegance without being sterile, we removed the harsh purple gradients and introduced a warm `Amber 500` (Orange/Yellow) as the `--primary` accent color, which contrasts beautifully against deep Zinc/Slate grays.
+
+### 3. Component Redesigns
+* **Dashboard (`DocumentDashboard.tsx`):** Removed heavy backdrop-blurs. The sidebar is now a flat `bg-muted/30` panel, and the main canvas is a clean `bg-background`. Action buttons are flat and solid.
+* **Document Cards (`DocumentCard.tsx`):** Swapped deep purple glows for a crisp 1px `border-border` outline and a subtle `hover:shadow-md` effect, drastically reducing visual noise.
+* **Editor Header (`NexusEditor.tsx`):** The sticky header was simplified to a flat, white/dark-gray strip that blends organically into the page, allowing the rich text content to take center stage.
+
+---
+
+## [Date: 2026-07-28] - Phase 3.75: Podium-Inspired Premium Homepage & Editor Upgrade
+
+### 1. The Global Home Screen (Workspace Selector)
+To provide a true SaaS experience, we introduced a global `/` entry point (`Home.tsx`) before the user enters a specific workspace dashboard.
+* **Implementation:** `App.tsx` now renders `<Home />` if `activeWorkspaceId` is null. The user is presented with a premium grid of their workspaces.
+* **Dynamic Aesthetics:** The Home screen maps over a set of tint CSS variables (`--tint-orange`, `--tint-blue`, `--tint-red`, `--tint-green`) to give each workspace card a unique, subtle glowing hover effect, maintaining a deeply premium but colorful identity.
+
+### 2. High-Contrast, Deep Dark Palette
+Based on user feedback requesting a more "Podium Automation" inspired look (hyper-premium B2B tech):
+* The dark mode background was pushed to near-true-black (`#060606`), paired with razor-thin borders (`#262626`).
+* A new utility `.bg-grid-pattern` was created using `linear-gradient` masking to render a subtle dot/grid matrix behind the dashboard and editor, evoking an engineering environment.
+
+### 3. Elevated Editor Surface
+The editor was upgraded from a flat document to an "Elevated Canvas".
+* The rich text area (`.nexus-editor__content-wrapper`) now floats inside the container with a shadow and curved borders (`rounded-2xl`).
+* The toolbar (`.editor-toolbar`) was restyled as a sticky, glassmorphism "pill" (rounded-full with backdrop-blur) that floats above the text.
+
+### 4. Workspace Deletion Feature
+* Added `DELETE /api/workspaces/:id` endpoint in `workspace.controller.ts` with ownership verification.
+* Wired up a trash icon hover button in `Home.tsx` to allow deleting workspaces from the UI.

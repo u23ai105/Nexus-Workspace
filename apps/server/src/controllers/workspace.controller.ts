@@ -49,3 +49,31 @@ export const createWorkspace = async (req: AuthRequest, res: Response) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 };
+
+// DELETE /workspaces/:id -> Delete a workspace
+export const deleteWorkspace = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    const workspaceId = req.params.id;
+    if (!workspaceId) return res.status(400).json({ error: 'Workspace ID required' });
+
+    // Verify ownership
+    const workspace = await prisma.workspace.findUnique({
+      where: { id: workspaceId }
+    });
+
+    if (!workspace) return res.status(404).json({ error: 'Workspace not found' });
+    if (workspace.ownerId !== userId) return res.status(403).json({ error: 'Forbidden' });
+
+    await prisma.workspace.delete({
+      where: { id: workspaceId }
+    });
+
+    res.status(200).json({ message: 'Workspace deleted successfully' });
+  } catch (error) {
+    console.error("Error deleting workspace:", error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};

@@ -8,79 +8,184 @@
 @layer base {
   .theme {
     --font-heading: var(--font-sans);
-    --font-sans: 'Geist Variable', sans-serif}
+    --font-sans: 'Geist Variable', sans-serif;
+  }
+  
   :root {
-    --background: oklch(1 0 0);
-    --foreground: oklch(0.145 0 0);
-    --card: oklch(1 0 0);
-    --card-foreground: oklch(0.145 0 0);
-    --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.145 0 0);
-    --primary: oklch(0.205 0 0);
-    --primary-foreground: oklch(0.985 0 0);
-    --secondary: oklch(0.97 0 0);
-    --secondary-foreground: oklch(0.205 0 0);
-    --muted: oklch(0.97 0 0);
-    --muted-foreground: oklch(0.556 0 0);
-    --accent: oklch(0.97 0 0);
-    --accent-foreground: oklch(0.205 0 0);
-    --destructive: oklch(0.577 0.245 27.325);
-    --border: oklch(0.922 0 0);
-    --input: oklch(0.922 0 0);
-    --ring: oklch(0.708 0 0);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
-    --radius: 0.625rem;
-    --sidebar: oklch(0.985 0 0);
-    --sidebar-foreground: oklch(0.145 0 0);
-    --sidebar-primary: oklch(0.205 0 0);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.97 0 0);
-    --sidebar-accent-foreground: oklch(0.205 0 0);
-    --sidebar-border: oklch(0.922 0 0);
-    --sidebar-ring: oklch(0.708 0 0)}
-  .dark {
-    --background: oklch(0.145 0 0);
-    --foreground: oklch(0.985 0 0);
-    --card: oklch(0.205 0 0);
-    --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.205 0 0);
-    --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.922 0 0);
-    --primary-foreground: oklch(0.205 0 0);
-    --secondary: oklch(0.269 0 0);
-    --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.269 0 0);
-    --muted-foreground: oklch(0.708 0 0);
-    --accent: oklch(0.269 0 0);
-    --accent-foreground: oklch(0.985 0 0);
-    --destructive: oklch(0.704 0.191 22.216);
-    --border: oklch(1 0 0 / 10%);
-    --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.556 0 0);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
-    --sidebar: oklch(0.205 0 0);
-    --sidebar-foreground: oklch(0.985 0 0);
-    --sidebar-primary: oklch(0.488 0.243 264.376);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.269 0 0);
-    --sidebar-accent-foreground: oklch(0.985 0 0);
-    --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: oklch(0.556 0 0)}
+    /* Premium Light Mode (Crisp, High Contrast) */
+    --background: 250 250 250; /* #fafafa */
+    --foreground: 10 10 10;    /* #0a0a0a */
+    
+    --card: 255 255 255;
+    --card-foreground: 10 10 10;
+    
+    --popover: 255 255 255;
+    --popover-foreground: 10 10 10;
+    
+    /* Base Neutral Borders */
+    --border: 229 229 229;     /* #e5e5e5 */
+    --input: 229 229 229;
+    
+    /* Primary / Secondary Neutral Tones */
+    --primary: 24 24 27;       /* #18181b */
+    --primary-foreground: 250 250 250;
+    
+    --secondary: 244 244 245;  /* #f4f4f5 */
+    --secondary-foreground: 24 24 27;
+    
+    --muted: 244 244 245;
+    --muted-foreground: 113 113 122; /* #71717a */
+    
+    /* User Requested Tints (Accessible across themes) */
+    --tint-orange: 249 115 22; /* Orange 500 */
+    --tint-blue: 59 130 246;   /* Blue 500 */
+    --tint-red: 239 68 68;     /* Red 500 */
+    --tint-green: 34 197 94;   /* Green 500 */
+    
+    --ring: var(--tint-orange);
+    --radius: 0.5rem;
+  }
+  
+  @media (prefers-color-scheme: dark) {
+    :root {
+      /* Podium-Inspired Ultra Dark Mode */
+      --background: 6 6 6;       /* #060606 - Almost true black */
+      --foreground: 250 250 250; /* #fafafa */
+      
+      --card: 13 13 13;          /* Slightly elevated black */
+      --card-foreground: 250 250 250;
+      
+      --popover: 13 13 13;
+      --popover-foreground: 250 250 250;
+      
+      /* Subtle razor-thin borders */
+      --border: 38 38 38;        /* #262626 */
+      --input: 38 38 38;
+      
+      --primary: 250 250 250;
+      --primary-foreground: 6 6 6;
+      
+      --secondary: 38 38 38;
+      --secondary-foreground: 250 250 250;
+      
+      --muted: 23 23 23;         /* #171717 */
+      --muted-foreground: 163 163 163; /* #a3a3a3 */
+      
+      /* Tech Tints - Slightly brighter for dark mode */
+      --tint-orange: 251 146 60; /* Orange 400 */
+      --tint-blue: 96 165 250;   /* Blue 400 */
+      --tint-red: 248 113 113;   /* Red 400 */
+      --tint-green: 74 222 128;  /* Green 400 */
+      
+      --ring: var(--tint-orange);
+    }
+  }
+
   * {
     @apply border-border outline-ring/50;
   }
+  
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased selection:bg-orange-500/30;
+    /* Ensure no bounce overflow color mismatches */
+    background-color: rgb(var(--background));
   }
+  
   html {
     @apply font-sans;
+  }
+}
+
+@layer utilities {
+  /* Premium Engineering/Tech grid background */
+  .bg-grid-pattern {
+    background-size: 40px 40px;
+    background-image: linear-gradient(to right, rgb(var(--border) / 0.5) 1px, transparent 1px),
+                      linear-gradient(to bottom, rgb(var(--border) / 0.5) 1px, transparent 1px);
+  }
+
+  .bg-grid-pattern-radial {
+    background-size: 40px 40px;
+    background-image: linear-gradient(to right, rgb(var(--border) / 0.5) 1px, transparent 1px),
+                      linear-gradient(to bottom, rgb(var(--border) / 0.5) 1px, transparent 1px);
+    mask-image: radial-gradient(circle at center, black, transparent 90%);
+    -webkit-mask-image: radial-gradient(circle at center, black, transparent 90%);
+  }
+  
+  /* Tint utility classes */
+  .text-tint-orange { color: rgb(var(--tint-orange)); }
+  .text-tint-blue { color: rgb(var(--tint-blue)); }
+  .text-tint-red { color: rgb(var(--tint-red)); }
+  .text-tint-green { color: rgb(var(--tint-green)); }
+  
+  .bg-tint-orange { background-color: rgb(var(--tint-orange)); }
+  .bg-tint-blue { background-color: rgb(var(--tint-blue)); }
+  .bg-tint-red { background-color: rgb(var(--tint-red)); }
+  .bg-tint-green { background-color: rgb(var(--tint-green)); }
+  
+  .border-tint-orange { border-color: rgb(var(--tint-orange)); }
+  .border-tint-blue { border-color: rgb(var(--tint-blue)); }
+  .border-tint-red { border-color: rgb(var(--tint-red)); }
+  .border-tint-green { border-color: rgb(var(--tint-green)); }
+}
+
+@layer components {
+  /* Podium-style Premium Card */
+  .premium-card {
+    @apply bg-card border border-border/60 shadow-sm rounded-xl overflow-hidden transition-all duration-300;
+  }
+  
+  .premium-card:hover {
+    @apply border-border shadow-md -translate-y-0.5;
+  }
+
+  /* Podium-style Glass Pill Toolbar */
+  .editor-toolbar {
+    @apply flex items-center gap-1 p-1.5 border border-border/50 bg-background/70 backdrop-blur-xl rounded-full shadow-sm sticky top-6 z-10 mx-auto w-fit transition-all;
+  }
+
+  .toolbar-btn {
+    @apply p-2 rounded-full text-muted-foreground transition-all flex items-center justify-center;
+  }
+
+  .toolbar-btn:hover:not(:disabled) {
+    @apply bg-muted text-foreground scale-105;
+  }
+
+  .toolbar-btn.active {
+    @apply bg-foreground text-background shadow-sm;
+  }
+
+  .toolbar-btn:disabled {
+    @apply opacity-30 cursor-not-allowed;
+  }
+
+  .toolbar-divider {
+    @apply w-px h-5 bg-border/80 mx-1;
+  }
+
+  /* Elevated Editor Surface */
+  .nexus-editor__content-wrapper {
+    @apply max-w-4xl mx-auto px-10 py-16 mt-8 bg-card border border-border/50 shadow-sm rounded-2xl min-h-[70vh];
+  }
+
+  .nexus-editor__content .ProseMirror {
+    @apply focus:outline-none max-w-none text-[17px] leading-relaxed;
+  }
+  
+  .nexus-editor__content .ProseMirror p {
+    @apply mb-5 text-muted-foreground transition-colors focus-within:text-foreground;
+  }
+  
+  .nexus-editor__content .ProseMirror h1 {
+    @apply text-4xl font-semibold mt-10 mb-6 tracking-tight text-foreground;
+  }
+  
+  .nexus-editor__content .ProseMirror h2 {
+    @apply text-2xl font-semibold mt-8 mb-4 tracking-tight text-foreground;
+  }
+  
+  .nexus-editor__content .ProseMirror h3 {
+    @apply text-xl font-medium mt-6 mb-3 text-foreground;
   }
 }

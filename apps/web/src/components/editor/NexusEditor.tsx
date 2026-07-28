@@ -251,9 +251,9 @@ export function NexusEditor({ ydoc, awareness, user, documentTitle, onRename, on
   const editor = useEditor({ extensions })
 
   return (
-    <div className="nexus-editor">
+    <div className="nexus-editor flex-1 bg-grid-pattern bg-background overflow-y-auto h-full relative">
       {/* Top Header Bar with Back Button, Inline Title, and Status Badge */}
-      <div className="flex items-center justify-between px-6 py-3.5 bg-slate-950/80 border-b border-slate-800 backdrop-blur-md">
+      <div className="flex items-center justify-between px-6 py-3.5 bg-background/80 backdrop-blur-xl border-b border-border/50 sticky top-0 z-20 shadow-sm">
         <div className="flex items-center space-x-4 flex-1 min-w-0 mr-4">
           {onBack && (
             <button
@@ -263,7 +263,7 @@ export function NexusEditor({ ydoc, awareness, user, documentTitle, onRename, on
                 }
                 onBack()
               }}
-              className="flex items-center space-x-1.5 text-xs text-slate-400 hover:text-white bg-slate-900 hover:bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-800 transition-all shrink-0"
+              className="flex items-center space-x-1.5 text-xs text-muted-foreground hover:text-foreground bg-muted/50 hover:bg-muted px-3 py-1.5 rounded-md border border-border transition-all shrink-0"
             >
               <span>⬅</span>
               <span>Dashboard</span>
@@ -284,17 +284,17 @@ export function NexusEditor({ ydoc, awareness, user, documentTitle, onRename, on
                     setIsRenaming(false)
                   }}
                   autoFocus
-                  className="bg-slate-900 text-white text-lg font-bold px-2.5 py-0.5 rounded-lg border border-purple-500 focus:outline-none w-full max-w-md"
+                  className="bg-background text-foreground text-lg font-semibold px-2 py-0.5 rounded-sm border border-primary focus:outline-none focus:ring-1 focus:ring-primary w-full max-w-md"
                 />
               </form>
             ) : (
               <div
                 onClick={() => setIsRenaming(true)}
-                className="group flex items-center space-x-2 cursor-pointer py-0.5 px-2 -ml-2 rounded-lg hover:bg-slate-900/80 transition-colors w-fit"
+                className="group flex items-center space-x-2 cursor-pointer py-0.5 px-2 -ml-2 rounded-sm hover:bg-muted/80 transition-colors w-fit"
                 title="Click to rename document inline"
               >
-                <h2 className="text-lg font-bold text-white truncate">{documentTitle}</h2>
-                <span className="text-xs text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity">✏️</span>
+                <h2 className="text-lg font-semibold text-foreground truncate">{documentTitle}</h2>
+                <span className="text-xs text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">✏️</span>
               </div>
             )}
           </div>
@@ -303,21 +303,22 @@ export function NexusEditor({ ydoc, awareness, user, documentTitle, onRename, on
         {/* Live Cloud Save Status Badge */}
         <div className="flex items-center space-x-3 shrink-0">
           {saveStatus === 'saved' && (
-            <span className="inline-flex items-center space-x-1.5 text-xs font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded-full">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-              <span>🟢 Saved to Cloud</span>
+            <span className="inline-flex items-center space-x-1.5 text-xs font-medium text-muted-foreground bg-muted/50 border border-border px-2.5 py-1 rounded-md">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+              <span>Saved to Cloud</span>
             </span>
           )}
           {saveStatus === 'saving' && (
-            <span className="inline-flex items-center space-x-1.5 text-xs font-semibold text-yellow-400 bg-yellow-500/10 border border-yellow-500/20 px-3 py-1 rounded-full">
-              <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 animate-ping" />
-              <span>🟡 Saving...</span>
+            <span className="inline-flex items-center space-x-1.5 text-xs font-medium text-foreground bg-muted border border-border px-2.5 py-1 rounded-md">
+              <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+              <span>Saving...</span>
             </span>
           )}
         </div>
       </div>
 
-      {/* Live presence bar — shows online count + all connected authors */}
+      <div className="relative z-10 max-w-5xl mx-auto pb-24">
+        {/* Live presence bar — shows online count + all connected authors */}
       <OnlineBar users={onlineUsers} />
 
       {/* Formatting toolbar */}
@@ -328,8 +329,8 @@ export function NexusEditor({ ydoc, awareness, user, documentTitle, onRename, on
         <EditorContent editor={editor} className="nexus-editor__content" />
       </div>
 
-      {/* Word / character count */}
-      <WordCount editor={editor} />
+        <WordCount editor={editor} />
+      </div>
     </div>
   )
 }
