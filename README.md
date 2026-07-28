@@ -1,7 +1,7 @@
 <div align="center">
   <h1>🌌 Nexus Workspace</h1>
-  <p><strong>AI-Powered Collaborative Research & Productivity Platform</strong></p>
-  <p><i>A collaborative workspace where teams can research, write, discuss, organize knowledge, and build AI-assisted documents in real time.</i></p>
+  <p><strong>The Premium Collaborative Productivity Platform for Professionals & Students</strong></p>
+  <p><i>A unified workspace combining real-time rich text editing, AI, infinite canvases, and team communication into one seamless environment.</i></p>
 
   <!-- Add your badges here later! Example: -->
   <!-- <img src="https://img.shields.io/badge/React-19-blue" alt="React 19" /> -->
@@ -12,74 +12,59 @@
 
 ## 📖 About The Project
 
-**Nexus Workspace** is an enterprise-grade productivity platform combining the best features of Notion, Google Docs, and ChatGPT into a single, unified environment. Built with a distributed microservices architecture, it enables teams to collaborate on rich-text documents in real-time, organize nested knowledge bases, and leverage powerful AI agents to analyze, summarize, and generate content dynamically.
+**Nexus Workspace** is built to replace the fragmented stack of Google Docs, Slack, Miro, and ChatGPT. It is a highly scalable, real-time productivity engine designed specifically for remote teams, agencies, and study groups. With enterprise-grade data persistence, Role-Based Access Control (RBAC), and deeply integrated AI, Nexus Workspace is built for the future of work.
 
-### 🌟 Key Features
+---
 
-- **⚡ Real-Time Collaboration**: Google Docs-style live editing with cursor presence, typing indicators, and conflict resolution powered by Yjs (CRDTs) and WebSockets.
-- **🧠 Embedded AI Assistant**: Context-aware AI integrated directly into the editor. Ask the AI to rewrite, summarize, generate code, or translate text inline.
-- **🔍 RAG-Powered Research**: An autonomous research agent backed by a Qdrant vector database. Ask global workspace questions and get synthesized answers with citations.
-- **📂 Dynamic Knowledge Base**: Create nested wiki pages, link documents bi-directionally, and organize workflows using drag-and-drop Kanban boards and infinite-canvas whiteboards.
-- **💬 Team Communication**: Threaded chats, inline comments, document mentions, and push notifications to keep teams aligned.
-- **🛡️ Enterprise Security**: Role-based access control (RBAC), JWT rotation, rate limiting, and robust input validation.
+## 🌟 The "Wow" Factor: Outstanding Features
+
+We go beyond standard text editing. Nexus Workspace includes cutting-edge tools to elevate collaboration:
+
+- 🎨 **The "Infinite Canvas" Mode**: Toggle any document into a 2D spatial whiteboard. Drag text blocks, images, and PDFs around, connecting them with arrows for mind-mapping and brainstorming.
+- 🧩 **Interactive "Mini-App" Blocks**: Type `/` to insert powerful widgets directly into your text. Use `/poll` for collaborative voting, `/kanban` to embed a project board, or `/code` for live code execution.
+- 🧠 **Nexus Copilot (Context-Aware AI)**: Deeply integrated AI that doesn't just chat—it acts. Highlight text to "Extract Action Items", automatically generate `#tags` based on document context, and search across your entire workspace semantically.
+- 📽️ **"Follow Me" Presentation Mode**: Click a button to lock every other user's screen to your view. As you scroll and highlight text, their screens move synchronously. Perfect for remote teaching and client pitches.
+
+---
+
+## 🚀 Core Platform Features
+
+- **⚡ Real-Time Collaboration Engine**: Google Docs-style live editing with sub-millisecond cursor presence, powered by Yjs (CRDTs), Socket.io, and WebSockets.
+- **🛡️ Role-Based Access Control (RBAC)**: Assign users as `Owner`, `Admin`, `Editor`, or `Viewer`. Granular feature access ensures data governance for professional teams.
+- **💬 Workspace Communication**: Persistent, real-time global workspace chat channels alongside document-specific comment threads.
+- **☁️ Cloud Persistence & Dirty State Protection**: Edits are debounced and saved automatically to PostgreSQL. Active browser tabs are protected from accidental closure while saving.
+- **📁 Media & Workspace Drive**: Deep integration with Supabase Storage. Drag and drop images into the editor, or upload reference PDFs to your workspace drive.
+- **✨ Premium Glassmorphism UI**: A stunning, fluid user interface built with Tailwind CSS, featuring smooth micro-animations, customizable workspace covers, and dynamic grid/list views.
+- **📇 Member & Contact Management**: Search your contact book or invite new collaborators via email seamlessly.
 
 ---
 
 ## 🏗️ Architecture & Tech Stack
 
-Nexus Workspace is built as a highly scalable, containerized distributed system.
+Nexus Workspace is built as a highly scalable, containerized distributed system inside a **Turborepo** monorepo.
 
 ### Frontend
 - **Framework**: React 19, TypeScript, Vite
 - **State & Data Fetching**: Zustand, TanStack (React) Query
-- **Styling**: Tailwind CSS, Framer Motion
-- **Editor & Canvas**: Tiptap (or Lexical), React Flow
+- **Styling**: Tailwind CSS (Glassmorphism design), Framer Motion
+- **Editor & Canvas**: Tiptap (ProseMirror), React Flow
 - **Real-Time**: Socket.io Client, Yjs
 
 ### Backend & Microservices
-- **Server**: Node.js, Express, TypeScript
+- **Server**: Node.js, Express, TypeScript (running on ultra-fast `tsx` esbuild)
 - **Database**: PostgreSQL (Relational Data), Prisma ORM
-- **Caching & Queues**: Redis, BullMQ (Background Jobs)
+- **Cloud Storage**: Supabase (Postgres Pooler & Object Storage)
 - **Real-Time Server**: Socket.io
-- **AI & Vectors**: OpenAI / Gemini APIs, Qdrant (Vector DB), Vercel AI SDK
-
-### DevOps & Infrastructure
-- **Containerization**: Docker, Docker Compose
-- **CI/CD**: GitHub Actions
-- **Monitoring**: Prometheus, Grafana
-
-### High-Level System Architecture
-
-```mermaid
-graph TD
-    Client[React Frontend] -->|HTTPS / REST| Gateway[API Gateway]
-    Client -->|WebSockets| WSServer[Socket.IO Server]
-    
-    Gateway --> Auth[Auth Service]
-    Gateway --> Workspace[Workspace API]
-    Gateway --> Search[Search API]
-    
-    Workspace --> DB[(PostgreSQL)]
-    Workspace --> Cache[(Redis)]
-    
-    Search --> AI[AI RAG Service]
-    AI --> VectorDB[(Qdrant Vector DB)]
-    AI --> LLM[OpenAI / Gemini]
-    
-    WSServer --> DB
-    WSServer --> Cache
-```
+- **AI**: OpenAI / Gemini APIs, Vercel AI SDK
 
 ---
 
 ## 🚀 Getting Started
 
 ### Prerequisites
-- Node.js (v18+)
-- Docker & Docker Compose
-- PostgreSQL (or run via Docker)
-- Redis (or run via Docker)
-- OpenAI API Key
+- Node.js (v20+)
+- PostgreSQL Database URL (e.g., Supabase)
+- pnpm (Package Manager)
 
 ### Installation
 
@@ -94,25 +79,19 @@ graph TD
    pnpm install
    ```
 
-3. **Build internal packages**
+3. **Set up environment variables**
+   Copy `.env.example` to `.env` in `apps/web`, `apps/server`, and `packages/database`. Add your PostgreSQL connection strings.
+
+4. **Sync the Database Schema**
    ```bash
-   pnpm run build
+   pnpm --filter @nexus/database run db:push
    ```
 
-4. **Set up environment variables**
-   *(Note: Database & Auth configuration coming in Phase 2)*
-   Copy `.env.example` to `.env` in the respective directories (`apps/web`, `apps/server`) once created.
-
-5. **Spin up local infrastructure (DB, Redis, Qdrant)**
-   ```bash
-   docker-compose up -d
-   ```
-
-6. **Start the development servers**
+5. **Start the development servers**
    ```bash
    pnpm run dev
    ```
-   *This triggers Turborepo to start the frontend, backend, and all package watchers simultaneously.*
+   *This starts the frontend on `localhost:5173` and the backend on `localhost:4000` with instant HMR.*
 
 ---
 
@@ -121,28 +100,27 @@ graph TD
 ```text
 nexus-workspace/
 ├── apps/
-│   ├── web/                 # React 19 Frontend
-│   ├── server/              # Main Node.js Express API
-│   ├── ai-service/          # Python/Node RAG & Embeddings Service
-│   └── websocket-service/   # Dedicated Socket.io server
+│   ├── web/                 # React 19 Frontend (Vite)
+│   └── server/              # Node.js Express API & Socket.io server
 ├── packages/
-│   ├── ui/                  # Shared React components (Tailwind)
+│   ├── database/            # Prisma schema, migrations, and generated client
 │   ├── shared/              # Shared types, Zod schemas, constants
-│   ├── config/              # ESLint, TypeScript, Prettier configs
-│   └── database/            # Prisma schema and generated client
-├── infra/                   # Terraform/Docker configurations
-└── docs/                    # Architecture Decision Records (ADRs) & API specs
+│   ├── config-typescript/   # Shared tsconfig bases
+│   └── ui/                  # (Future) Shared React components
+└── docs/                    # Architecture Decision Records & Learning Journals
 ```
 
 ---
 
 ## 🗺️ Development Roadmap
 
-- [x] **Phase 1: Foundation (Weeks 1-2)** - Monorepo setup, Auth (JWT/OAuth), PostgreSQL schema, basic Dashboard and Workspace CRUD.
-- [ ] **Phase 2: Real-Time Engine (Weeks 3-4)** - Tiptap integration, Yjs setup, Socket.io presence, live collaborative editing.
-- [ ] **Phase 3: AI & RAG Integration (Weeks 5-6)** - Vector DB setup, document chunking pipeline, AI Chat interface, inline AI editor actions.
-- [ ] **Phase 4: Advanced Modules (Week 7)** - Kanban boards, Whiteboards, deep search, real-time notifications.
-- [ ] **Phase 5: Polish & DevOps (Week 8)** - Dockerization, CI/CD pipelines, Prometheus monitoring, performance optimization, and final deployment.
+- [x] **Phase 1: Foundation** - Monorepo setup, Auth (JWT/OAuth), PostgreSQL schema, basic Dashboard and Workspace CRUD.
+- [x] **Phase 2: Real-Time Engine** - Tiptap integration, Yjs setup, Socket.io presence, live collaborative editing.
+- [x] **Phase 3: Persistence & Dashboard UI** - CRDT Database snapshotting, glassmorphism UI, dirty state protection, debounced saving.
+- [ ] **Phase 4: Identity & Access** - DB schema updates for RBAC, Workspace Invites, Contacts, and the Member Management UI.
+- [ ] **Phase 5: Media Infrastructure** - Supabase Storage integration, File uploading UI, and Tiptap Image extension.
+- [ ] **Phase 6: Communication & Mini-Apps** - Real-time Workspace Chat, Presence indicators, and Interactive Blocks (`/poll`, `/kanban`).
+- [ ] **Phase 7: The "Wow" Features** - Infinite Canvas Mode, "Follow Me" Presentation Mode, and Nexus Copilot (AI Integration).
 
 ---
 
