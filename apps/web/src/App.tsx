@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react'
-import { CollaborativeEditor } from './components/editor/CollaborativeEditor'
+import { useState, useEffect, lazy, Suspense } from 'react'
+import useSWR from 'swr'
+const CollaborativeEditor = lazy(() => import('./components/editor/CollaborativeEditor').then(m => ({ default: m.CollaborativeEditor })))
 import { DocumentDashboard } from './components/dashboard/DocumentDashboard'
 import { Home } from './components/home/Home'
 import { NotificationBell } from './components/ui/NotificationBell'
@@ -22,7 +23,6 @@ export default function App() {
   })
 
   // Form states
-  const [workspaces, setWorkspaces] = useState<{ id: string; name: string; userRole?: string }[]>([])
   const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(() => localStorage.getItem('nexus_workspace_id'))
   const [selectedDoc, setSelectedDoc] = useState<DocumentItem | null>(null)
   const [userRole, setUserRole] = useState<string>('OWNER')
@@ -59,20 +59,26 @@ export default function App() {
     }
   }, [activeWorkspaceId])
 
-  const fetchWorkspaces = async () => {
-    if (!jwt || !user) return
-    try {
-      const res = await fetch(`${BACKEND_URL}/api/workspaces`, {
-        headers: { Authorization: `Bearer ${jwt}` },
-        cache: 'no-store'
-      })
-      const data = await res.json()
-      if (res.ok) {
-        if (data.workspaces && data.workspaces.length > 0) {
-          setWorkspaces(data.workspaces)
-        } else {
-          // Auto-create default Personal Workspace if none exist
-          const createRes = await fetch(`${BACKEND_URL}/api/workspaces`, {
+  const fetcher = async ([url, token]: [string, string]) => {
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.error || 'Failed to fetch')
+    return data
+  }
+
+  const { data: workspacesData, mutate: mutateWorkspaces } = useSWR(
+    jwt && user ? [`${BACKEND_URL}/api/workspaces`, jwt] : null,
+    fetcher
+  )
+
+  const workspaces = workspacesData?.workspaces || []
+
+  // Auto-create default Personal Workspace if none exist
+  useEffect(() => {
+    if (workspacesData && workspacesData.workspaces?.length === 0 && jwt && user) {
+      const createDefault = async () => {
+        try {
+          const res = await fetch(`${BACKEND_URL}/api/workspaces`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -80,22 +86,18 @@ export default function App() {
             },
             body: JSON.stringify({ name: `${user.name}'s Workspace` }),
           })
-          const createData = await createRes.json()
-          if (createRes.ok && createData.workspace) {
-            setWorkspaces([createData.workspace])
+          const createData = await res.json()
+          if (res.ok && createData.workspace) {
+            mutateWorkspaces() // Re-fetch
             setActiveWorkspaceId(createData.workspace.id)
           }
+        } catch (err) {
+          console.error(err)
         }
       }
-    } catch (err) {
-      console.error('Failed to fetch workspaces:', err)
+      createDefault()
     }
-  }
-
-  // Fetch workspaces when authenticated
-  useEffect(() => {
-    fetchWorkspaces()
-  }, [jwt, user])
+  }, [workspacesData, jwt, user, mutateWorkspaces])
 
   const handleCreateWorkspace = async (name: string) => {
     try {
@@ -109,7 +111,7 @@ export default function App() {
       })
       const data = await res.json()
       if (res.ok && data.workspace) {
-        setWorkspaces((prev) => [...prev, data.workspace])
+        mutateWorkspaces({ workspaces: [data.workspace, ...workspaces] }, false)
         setActiveWorkspaceId(data.workspace.id)
       }
     } catch (err) {
@@ -126,7 +128,7 @@ export default function App() {
         },
       })
       if (res.ok) {
-        setWorkspaces((prev) => prev.filter((w) => w.id !== id))
+        mutateWorkspaces({ workspaces: workspaces.filter((w: any) => w.id !== id) }, false)
         if (activeWorkspaceId === id) {
           setActiveWorkspaceId(null)
           setSelectedDoc(null)
@@ -148,7 +150,9 @@ export default function App() {
         body: JSON.stringify({ name: newName })
       })
       if (res.ok) {
-        setWorkspaces((prev) => prev.map((w) => w.id === id ? { ...w, name: newName } : w))
+        mutateWorkspaces({
+          workspaces: workspaces.map((w: any) => (w.id === id ? { ...w, name: newName } : w))
+        }, false)
       }
     } catch (err) {
       console.error('Failed to rename workspace', err)
@@ -269,9 +273,9 @@ export default function App() {
             <NotificationBell 
               jwt={jwt} 
               serverUrl={BACKEND_URL} 
-              onInvitationAccepted={fetchWorkspaces} 
+              onInvitationAccepted={mutateWorkspaces} 
               onWorkspaceRemoved={(removedId) => {
-                setWorkspaces((prev) => prev.filter((w) => w.id !== removedId))
+                mutateWorkspaces({ workspaces: workspaces.filter((w: any) => w.id !== removedId) }, false)
                 if (activeWorkspaceId === removedId) {
                   setActiveWorkspaceId(null)
                   setSelectedDoc(null)
@@ -299,29 +303,31 @@ export default function App() {
         {/* Body (Dashboard or Collaborative Editor) */}
         <main className="flex-1 overflow-hidden relative z-10">
           {selectedDoc ? (
-            <CollaborativeEditor
-              key={selectedDoc.id}
-              documentId={selectedDoc.id}
-              userId={user.id}
-              userName={user.name}
-              userColor={user.color}
-              token={jwt}
-              serverUrl={BACKEND_URL}
-              documentTitle={selectedDoc.title}
-              readOnly={userRole === 'VIEWER'}
-              onBack={() => setSelectedDoc(null)}
-              onRename={(newTitle) => {
-                setSelectedDoc((prev) => (prev ? { ...prev, title: newTitle } : null))
-                fetch(`${BACKEND_URL}/api/documents/${selectedDoc.id}`, {
-                  method: 'PATCH',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${jwt}`,
-                  },
-                  body: JSON.stringify({ title: newTitle }),
-                }).catch(console.error)
-              }}
-            />
+            <Suspense fallback={<div className="flex-1 flex items-center justify-center h-full"><div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div></div>}>
+              <CollaborativeEditor
+                key={selectedDoc.id}
+                documentId={selectedDoc.id}
+                userId={user.id}
+                userName={user.name}
+                userColor={user.color}
+                token={jwt}
+                serverUrl={BACKEND_URL}
+                documentTitle={selectedDoc.title}
+                readOnly={userRole === 'VIEWER'}
+                onBack={() => setSelectedDoc(null)}
+                onRename={(newTitle) => {
+                  setSelectedDoc((prev) => (prev ? { ...prev, title: newTitle } : null))
+                  fetch(`${BACKEND_URL}/api/documents/${selectedDoc.id}`, {
+                    method: 'PATCH',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      Authorization: `Bearer ${jwt}`,
+                    },
+                    body: JSON.stringify({ title: newTitle }),
+                  }).catch(console.error)
+                }}
+              />
+            </Suspense>
           ) : activeWorkspaceId ? (
             <DocumentDashboard
               workspaceId={activeWorkspaceId}

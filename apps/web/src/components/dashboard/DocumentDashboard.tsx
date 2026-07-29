@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import useSWR from 'swr';
 import { DocumentCard, type DocumentItem } from './DocumentCard';
 import { ManageTeamModal } from './ManageTeamModal';
 
@@ -27,54 +28,38 @@ export const DocumentDashboard: React.FC<DocumentDashboardProps> = ({
   onSelectDocument,
   onRoleChange,
 }) => {
-  const [documents, setDocuments] = useState<DocumentItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<'all' | 'trash' | 'drive'>('all');
   const [creating, setCreating] = useState(false);
-  const [files, setFiles] = useState<FileItem[]>([]);
   const [uploadingFile, setUploadingFile] = useState(false);
   const [isTeamModalOpen, setIsTeamModalOpen] = useState(false);
   const [userRole, setUserRole] = useState<string>('OWNER');
 
-  const fetchDocuments = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const isArchived = activeTab === 'trash';
-      const res = await fetch(
-        `${serverUrl}/api/documents?workspaceId=${workspaceId}&isArchived=${isArchived}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-          cache: 'no-store'
-        }
-      );
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to load documents');
-      setDocuments(data.documents || []);
-      if (data.userRole) {
-        setUserRole(data.userRole);
-        onRoleChange?.(data.userRole);
-      }
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [workspaceId, token, serverUrl, activeTab]);
+  const fetcher = async ([url, jwt]: [string, string]) => {
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${jwt}` } });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to fetch');
+    return data;
+  };
 
-  const fetchFiles = useCallback(async () => {
-    try {
-      const res = await fetch(`${serverUrl}/api/files?workspaceId=${workspaceId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      if (res.ok) setFiles(data.files || []);
-    } catch (err) {
-      console.error('Failed to load files:', err);
+  const isArchived = activeTab === 'trash';
+  const docsKey = (activeTab === 'all' || activeTab === 'trash') ? [`${serverUrl}/api/documents?workspaceId=${workspaceId}&isArchived=${isArchived}`, token] : null;
+  const filesKey = activeTab === 'drive' ? [`${serverUrl}/api/files?workspaceId=${workspaceId}`, token] : null;
+
+  const { data: docsData, error: docsError, isLoading: docsLoading, mutate: mutateDocs } = useSWR(docsKey, fetcher);
+  const { data: filesData, error: filesError, isLoading: filesLoading, mutate: mutateFiles } = useSWR(filesKey, fetcher);
+
+  const documents = docsData?.documents || [];
+  const files = filesData?.files || [];
+  const loading = docsLoading || filesLoading;
+  const error = (docsError?.message || filesError?.message) || null;
+
+  useEffect(() => {
+    if (docsData?.userRole) {
+      setUserRole(docsData.userRole);
+      onRoleChange?.(docsData.userRole);
     }
-  }, [workspaceId, token, serverUrl]);
+  }, [docsData?.userRole, onRoleChange]);
 
   const handleDeleteFile = async (e: React.MouseEvent, fileId: string) => {
     e.preventDefault();
@@ -88,23 +73,15 @@ export const DocumentDashboard: React.FC<DocumentDashboardProps> = ({
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
-        setFiles(files.filter(f => f.id !== fileId));
+        mutateFiles();
       } else {
         const data = await res.json();
-        alert(data.error || 'Failed to delete file');
+        alert(data.error || 'Failed to update document');
       }
     } catch (err: any) {
       alert(err.message || 'Error deleting file');
     }
   };
-
-  useEffect(() => {
-    if (activeTab === 'all' || activeTab === 'trash') {
-      fetchDocuments();
-    } else if (activeTab === 'drive') {
-      fetchFiles();
-    }
-  }, [fetchDocuments, fetchFiles, activeTab]);
 
   // Create new document
   const handleCreateDocument = async (e?: React.MouseEvent) => {
@@ -124,12 +101,15 @@ export const DocumentDashboard: React.FC<DocumentDashboardProps> = ({
         body: JSON.stringify({ workspaceId }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(typeof data.error === 'string' ? data.error : JSON.stringify(data.error) || 'Failed to create document');
-      
-      setDocuments([data.document, ...documents]);
-      onSelectDocument(data.document);
-    } catch (err: any) {
-      alert(err.message || 'Error creating document');
+      if (res.ok && data.document) {
+        mutateDocs({ documents: [data.document, ...documents], userRole: docsData?.userRole }, false);
+        onSelectDocument(data.document);
+      } else {
+        alert(data.error || 'Failed to create document');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Upload error');
     } finally {
       setCreating(false);
     }
@@ -147,9 +127,7 @@ export const DocumentDashboard: React.FC<DocumentDashboardProps> = ({
         body: JSON.stringify({ title: newTitle }),
       });
       if (res.ok) {
-        setDocuments((prev) =>
-          prev.map((d) => (d.id === id ? { ...d, title: newTitle } : d))
-        );
+        mutateDocs();
       }
     } catch (err) {
       console.error('Failed to rename document:', err);
@@ -182,7 +160,7 @@ export const DocumentDashboard: React.FC<DocumentDashboardProps> = ({
             body: JSON.stringify({ textContent: doc.textContent }),
           });
         }
-        fetchDocuments();
+        mutateDocs();
       }
     } catch (err) {
       console.error('Failed to duplicate document:', err);
@@ -201,7 +179,7 @@ export const DocumentDashboard: React.FC<DocumentDashboardProps> = ({
         body: JSON.stringify({ isArchived }),
       });
       if (res.ok) {
-        setDocuments((prev) => prev.filter((d) => d.id !== id));
+        mutateDocs();
       }
     } catch (err) {
       console.error('Failed to archive document:', err);
@@ -219,7 +197,7 @@ export const DocumentDashboard: React.FC<DocumentDashboardProps> = ({
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
-        setDocuments((prev) => prev.filter((d) => d.id !== id));
+        mutateDocs();
       }
     } catch (err) {
       console.error('Failed to delete document:', err);
@@ -245,7 +223,7 @@ export const DocumentDashboard: React.FC<DocumentDashboardProps> = ({
       });
       const data = await res.json();
       if (res.ok && data.file) {
-        setFiles([data.file, ...files]);
+        mutateFiles();
       } else {
         alert(data.error || 'Upload failed');
       }

@@ -39,6 +39,8 @@ model Workspace {
   members   WorkspaceMember[]
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
+
+  @@index([ownerId])
 }
 
 enum MemberStatus {
