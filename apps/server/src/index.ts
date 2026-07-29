@@ -6,6 +6,7 @@ import authRoutes from './routes/auth.route';
 import workspaceRoutes from './routes/workspace.route';
 import documentRoutes from './routes/document.route';
 import fileRoutes from './routes/file.route';
+import invitationRoutes from './routes/invitation.route';
 
 dotenv.config();
 
@@ -39,6 +40,7 @@ app.use('/auth', authRoutes);
 app.use('/api/workspaces', workspaceRoutes);
 app.use('/api/documents', documentRoutes);
 app.use('/api/files', fileRoutes);
+app.use('/api/invitations', invitationRoutes);
 
 // Start Server if not in test mode
 let server: any;
@@ -49,7 +51,8 @@ if (process.env.NODE_ENV !== 'test') {
 
   // Socket.io real-time engine
   const { createSocketServer } = require('./socket');
-  createSocketServer(server);
+  const io = createSocketServer(server);
+  app.set('io', io);
 
   // Graceful shutdown handlers for fast and clean dev reloads
   const { prisma } = require('@nexus/database');

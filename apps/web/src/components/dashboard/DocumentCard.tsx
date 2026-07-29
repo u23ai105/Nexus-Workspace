@@ -21,6 +21,7 @@ interface DocumentCardProps {
   onDuplicate: (doc: DocumentItem) => void;
   onArchiveToggle: (id: string, isArchived: boolean) => void;
   onDeletePermanent: (id: string) => void;
+  userRole?: string;
 }
 
 export const DocumentCard: React.FC<DocumentCardProps> = ({
@@ -30,6 +31,7 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
   onDuplicate,
   onArchiveToggle,
   onDeletePermanent,
+  userRole = 'VIEWER',
 }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isRenaming, setIsRenaming] = useState(false);
@@ -134,15 +136,19 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
           </div>
 
           {/* Action Menu Trigger */}
-          <div className="relative" ref={menuRef} onClick={(e) => e.stopPropagation()}>
-            <button
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-              </svg>
-            </button>
+          {userRole !== 'VIEWER' && (
+            <div className="relative" ref={menuRef} onClick={(e) => e.stopPropagation()}>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsMenuOpen(!isMenuOpen);
+                }}
+                className="p-1.5 text-muted-foreground hover:bg-muted/80 hover:text-foreground rounded-md transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                </svg>
+              </button>
 
             {/* Dropdown Menu */}
             {isMenuOpen && (
@@ -200,16 +206,19 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
                           <span>♻️</span>
                           <span>Restore</span>
                         </button>
-                        <button
-                          onClick={() => {
-                            setIsMenuOpen(false);
-                            onDeletePermanent(doc.id);
-                          }}
-                          className="w-full px-3 py-1.5 text-left text-sm text-destructive hover:bg-destructive/10 flex items-center space-x-2"
-                        >
-                          <span>🗑️</span>
-                          <span>Delete Forever</span>
-                        </button>
+                        
+                        {(userRole === 'OWNER' || userRole === 'ADMIN') && (
+                          <button
+                            onClick={() => {
+                              setIsMenuOpen(false);
+                              onDeletePermanent(doc.id);
+                            }}
+                            className="w-full px-3 py-1.5 text-left text-sm text-destructive hover:bg-destructive/10 flex items-center space-x-2"
+                          >
+                            <span>🗑️</span>
+                            <span>Delete Forever</span>
+                          </button>
+                        )}
                       </>
                     ) : (
                       <button
@@ -226,8 +235,9 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
                   </div>
                 </div>
             )}
+            </div>
+            )}
           </div>
-        </div>
 
         {/* Content Snippet Preview */}
         <p className="text-sm text-muted-foreground line-clamp-3 leading-relaxed mb-4 min-h-[4rem]">

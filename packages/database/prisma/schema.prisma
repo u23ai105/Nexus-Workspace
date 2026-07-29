@@ -8,6 +8,13 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+enum WorkspaceRole {
+  OWNER
+  ADMIN
+  EDITOR
+  VIEWER
+}
+
 model User {
   id        String      @id @default(uuid())
   email     String      @unique
@@ -16,9 +23,10 @@ model User {
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
 
-  workspaces Workspace[]
-  documents  Document[]
-  files      File[]
+  workspaces       Workspace[]
+  documents        Document[]
+  files            File[]
+  workspaceMembers WorkspaceMember[]
 }
 
 model Workspace {
@@ -28,8 +36,31 @@ model Workspace {
   owner     User       @relation(fields: [ownerId], references: [id])
   documents Document[]
   files     File[]
+  members   WorkspaceMember[]
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
+}
+
+enum MemberStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
+model WorkspaceMember {
+  id          String        @id @default(uuid())
+  role        WorkspaceRole @default(VIEWER)
+  status      MemberStatus  @default(PENDING)
+  userId      String
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspaceId String
+  workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@unique([userId, workspaceId])
+  @@index([workspaceId])
+  @@index([userId])
 }
 
 model Document {

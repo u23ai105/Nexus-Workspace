@@ -11,6 +11,17 @@ if (supabaseUrl && supabaseKey) {
   supabase = createClient(supabaseUrl, supabaseKey);
 }
 
+// Helper to get user's role in a workspace
+const getUserRole = async (userId: string, workspaceId: string): Promise<string | null> => {
+  const workspace = await prisma.workspace.findUnique({ where: { id: workspaceId } });
+  if (workspace?.ownerId === userId) return 'OWNER';
+  const member = await prisma.workspaceMember.findUnique({
+    where: { userId_workspaceId: { userId, workspaceId } }
+  });
+  if (member && member.status === 'ACCEPTED') return member.role;
+  return null;
+};
+
 // POST /files/upload
 export const uploadFile = async (req: AuthRequest, res: Response) => {
   try {
@@ -28,15 +39,12 @@ export const uploadFile = async (req: AuthRequest, res: Response) => {
 
     // Verify workspace access
     const workspace = await prisma.workspace.findUnique({
-      where: { id: workspaceId }
+      where: { id: workspaceId },
+      include: { members: { where: { userId, status: 'ACCEPTED' } } }
     });
-    if (!workspace) {
-      return res.status(404).json({ error: 'Workspace not found' });
+    if (!workspace || (workspace.ownerId !== userId && workspace.members.length === 0)) {
+      return res.status(403).json({ error: 'Forbidden access to this workspace' });
     }
-
-    // Since we don't have RBAC fully implemented yet (Phase 4), we just check if it's the owner.
-    // In a real app with RBAC, we'd check if the user is a member of the workspace.
-    // We will allow it for now if they are authenticated, but ideally we check membership.
     
     if (!supabase) {
       return res.status(500).json({ error: 'Supabase Storage is not configured on the server. Please add SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY to .env' });
@@ -120,16 +128,20 @@ export const deleteFile = async (req: AuthRequest, res: Response) => {
     const { id } = req.params;
 
     const file = await prisma.file.findUnique({
-      where: { id },
-      include: { workspace: true }
+      where: { id }
     });
 
     if (!file) {
       return res.status(404).json({ error: 'File not found' });
     }
 
-    if (file.workspace.ownerId !== userId && file.uploaderId !== userId) {
+    const role = await getUserRole(userId, file.workspaceId);
+    if (!role) {
       return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    if (role !== 'OWNER' && role !== 'ADMIN') {
+      return res.status(403).json({ error: 'Forbidden: Only owners and admins can permanently delete files' });
     }
 
     if (supabase) {

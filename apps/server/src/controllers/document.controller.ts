@@ -3,6 +3,17 @@ import { prisma } from '@nexus/database';
 import { AuthRequest } from '../middlewares/auth.middleware';
 import { z } from 'zod';
 
+// Helper: get user's role in a workspace
+const getUserRole = async (userId: string, workspaceId: string): Promise<string | null> => {
+  const workspace = await prisma.workspace.findUnique({ where: { id: workspaceId } });
+  if (workspace?.ownerId === userId) return 'OWNER';
+  const member = await prisma.workspaceMember.findUnique({
+    where: { userId_workspaceId: { userId, workspaceId } }
+  });
+  if (member && member.status === 'ACCEPTED') return member.role;
+  return null;
+};
+
 const createDocumentSchema = z.object({
   workspaceId: z.string().min(1, "Workspace ID is required"),
   title: z.string().optional(),
@@ -28,9 +39,10 @@ export const getDocuments = async (req: AuthRequest, res: Response) => {
     // Verify user owns or has access to the workspace
     const workspace = await prisma.workspace.findUnique({
       where: { id: workspaceId },
+      include: { members: { where: { userId, status: 'ACCEPTED' } } }
     });
 
-    if (!workspace || workspace.ownerId !== userId) {
+    if (!workspace || (workspace.ownerId !== userId && workspace.members.length === 0)) {
       return res.status(403).json({ error: 'Forbidden access to this workspace' });
     }
 
@@ -59,7 +71,9 @@ export const getDocuments = async (req: AuthRequest, res: Response) => {
       orderBy: { updatedAt: 'desc' },
     });
 
-    res.status(200).json({ documents });
+    // Include the current user's role so the frontend can enforce read-only for VIEWERs
+    const userRole = workspace.ownerId === userId ? 'OWNER' : (workspace.members[0]?.role || 'OWNER');
+    res.status(200).json({ documents, userRole });
   } catch (error) {
     console.error("Error fetching documents:", error);
     res.status(500).json({ error: 'Internal server error' });
@@ -76,7 +90,9 @@ export const getDocumentById = async (req: AuthRequest, res: Response) => {
     const document = await prisma.document.findUnique({
       where: { id },
       include: {
-        workspace: true,
+        workspace: {
+          include: { members: { where: { userId, status: 'ACCEPTED' } } }
+        },
         creator: {
           select: { id: true, name: true, email: true },
         },
@@ -87,7 +103,7 @@ export const getDocumentById = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ error: 'Document not found' });
     }
 
-    if (document.workspace.ownerId !== userId && document.creatorId !== userId) {
+    if (document.workspace.ownerId !== userId && document.creatorId !== userId && document.workspace.members.length === 0) {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
@@ -106,13 +122,13 @@ export const createDocument = async (req: AuthRequest, res: Response) => {
 
     const { workspaceId, title } = createDocumentSchema.parse(req.body);
 
-    // Verify workspace access
-    const workspace = await prisma.workspace.findUnique({
-      where: { id: workspaceId },
-    });
-
-    if (!workspace || workspace.ownerId !== userId) {
+    // Verify workspace access AND check role (VIEWER cannot create)
+    const role = await getUserRole(userId, workspaceId);
+    if (!role) {
       return res.status(403).json({ error: 'Forbidden access to this workspace' });
+    }
+    if (role === 'VIEWER') {
+      return res.status(403).json({ error: 'Viewers cannot create documents' });
     }
 
     // Smart Untitled incrementing logic
@@ -161,8 +177,16 @@ export const updateDocument = async (req: AuthRequest, res: Response) => {
       include: { workspace: true },
     });
 
-    if (!existing || existing.workspace.ownerId !== userId) {
+    if (!existing) {
       return res.status(403).json({ error: 'Forbidden or document not found' });
+    }
+
+    const role = await getUserRole(userId, existing.workspaceId);
+    if (!role) {
+      return res.status(403).json({ error: 'Forbidden or document not found' });
+    }
+    if (role === 'VIEWER') {
+      return res.status(403).json({ error: 'Viewers cannot edit documents' });
     }
 
     const updated = await prisma.document.update({
@@ -196,8 +220,16 @@ export const deleteDocument = async (req: AuthRequest, res: Response) => {
       include: { workspace: true },
     });
 
-    if (!existing || existing.workspace.ownerId !== userId) {
+    if (!existing) {
       return res.status(403).json({ error: 'Forbidden or document not found' });
+    }
+
+    const role = await getUserRole(userId, existing.workspaceId);
+    if (!role) {
+      return res.status(403).json({ error: 'Forbidden or document not found' });
+    }
+    if (role !== 'OWNER' && role !== 'ADMIN') {
+      return res.status(403).json({ error: 'Forbidden: Only owners and admins can permanently delete documents' });
     }
 
     await prisma.document.delete({ where: { id } });

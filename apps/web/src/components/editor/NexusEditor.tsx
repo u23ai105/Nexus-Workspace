@@ -23,6 +23,7 @@ interface NexusEditorProps {
   awareness: Awareness
   user: { name: string; color: string }
   documentTitle: string
+  readOnly?: boolean
   onRename?: (newTitle: string) => void
   onBack?: () => void
   token: string
@@ -131,7 +132,7 @@ function OnlineBar({ users }: { users: OnlineUser[] }) {
 
 // ── Main Component: NexusEditor ────────────────────────────────────────────
 
-export function NexusEditor({ ydoc, awareness, user, documentTitle, onRename, onBack, token, serverUrl }: NexusEditorProps) {
+export function NexusEditor({ ydoc, awareness, user, documentTitle, readOnly = false, onRename, onBack, token, serverUrl }: NexusEditorProps) {
   // ── Live user list from awareness ──────────────────────────────────────
   const onlineUsers = useAwarenessUsers(awareness)
 
@@ -216,7 +217,11 @@ export function NexusEditor({ ydoc, awareness, user, documentTitle, onRename, on
 
   const [isRenaming, setIsRenaming] = useState(false)
   const [titleInput, setTitleInput] = useState(documentTitle)
-  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved')
+
+  useEffect(() => {
+    setTitleInput(documentTitle)
+  }, [documentTitle])
+  const [saveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved')
   const [isUploading, setIsUploading] = useState(false)
 
   // Upload handler
@@ -273,22 +278,33 @@ export function NexusEditor({ ydoc, awareness, user, documentTitle, onRename, on
   const editor = useEditor({ 
     extensions,
     editorProps: {
-      handleDrop: function(view, event, slice, moved) {
+      handleDrop: function(view, event, _slice, moved) {
+        if (readOnly) return false
         if (!moved && event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files[0]) {
           handleImageUpload(event.dataTransfer.files[0], view, event)
           return true
         }
         return false
       },
-      handlePaste: function(view, event, slice) {
+      handlePaste: function(view, event, _slice) {
+        if (readOnly) return false
         if (event.clipboardData && event.clipboardData.files && event.clipboardData.files[0]) {
           handleImageUpload(event.clipboardData.files[0], view, event)
           return true
         }
         return false
       }
-    }
+    },
+    editable: !readOnly,
   })
+
+  const handleTitleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (titleInput.trim() && titleInput !== documentTitle && onRename) {
+      onRename(titleInput.trim())
+    }
+    setIsRenaming(false)
+  }
 
   return (
     <div className="nexus-editor flex-1 bg-grid-pattern bg-background overflow-y-auto h-full relative">
@@ -311,7 +327,7 @@ export function NexusEditor({ ydoc, awareness, user, documentTitle, onRename, on
           )}
 
           <div className="flex-1 min-w-0">
-            {isRenaming ? (
+            {isRenaming && !readOnly ? (
               <form onSubmit={handleTitleSubmit}>
                 <input
                   type="text"
@@ -329,12 +345,12 @@ export function NexusEditor({ ydoc, awareness, user, documentTitle, onRename, on
               </form>
             ) : (
               <div
-                onClick={() => setIsRenaming(true)}
-                className="group flex items-center space-x-2 cursor-pointer py-0.5 px-2 -ml-2 rounded-sm hover:bg-muted/80 transition-colors w-fit"
-                title="Click to rename document inline"
+                onClick={() => { if (!readOnly) setIsRenaming(true) }}
+                className={`group flex items-center space-x-2 py-0.5 px-2 -ml-2 rounded-sm w-fit ${readOnly ? '' : 'cursor-pointer hover:bg-muted/80 transition-colors'}`}
+                title={readOnly ? "Read Only" : "Click to rename document inline"}
               >
                 <h2 className="text-lg font-semibold text-foreground truncate">{documentTitle}</h2>
-                <span className="text-xs text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">✏️</span>
+                {!readOnly && <span className="text-xs text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">✏️</span>}
               </div>
             )}
           </div>

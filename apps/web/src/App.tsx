@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { CollaborativeEditor } from './components/editor/CollaborativeEditor'
 import { DocumentDashboard } from './components/dashboard/DocumentDashboard'
 import { Home } from './components/home/Home'
+import { NotificationBell } from './components/ui/NotificationBell'
 import type { DocumentItem } from './components/dashboard/DocumentCard'
 import './App.css'
 
@@ -21,9 +22,10 @@ export default function App() {
   })
 
   // Form states
-  const [workspaces, setWorkspaces] = useState<{ id: string; name: string }[]>([])
+  const [workspaces, setWorkspaces] = useState<{ id: string; name: string; userRole?: string }[]>([])
   const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(() => localStorage.getItem('nexus_workspace_id'))
   const [selectedDoc, setSelectedDoc] = useState<DocumentItem | null>(null)
+  const [userRole, setUserRole] = useState<string>('OWNER')
   const [isRegister, setIsRegister] = useState(false)
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -57,42 +59,42 @@ export default function App() {
     }
   }, [activeWorkspaceId])
 
-  // Fetch workspaces when authenticated
-  useEffect(() => {
+  const fetchWorkspaces = async () => {
     if (!jwt || !user) return
-
-    const initWorkspaces = async () => {
-      try {
-        const res = await fetch(`${BACKEND_URL}/api/workspaces`, {
-          headers: { Authorization: `Bearer ${jwt}` },
-        })
-        const data = await res.json()
-        if (res.ok) {
-          if (data.workspaces && data.workspaces.length > 0) {
-            setWorkspaces(data.workspaces)
-          } else {
-            // Auto-create default Personal Workspace if none exist
-            const createRes = await fetch(`${BACKEND_URL}/api/workspaces`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${jwt}`,
-              },
-              body: JSON.stringify({ name: `${user.name}'s Workspace` }),
-            })
-            const createData = await createRes.json()
-            if (createRes.ok && createData.workspace) {
-              setWorkspaces([createData.workspace])
-              setActiveWorkspaceId(createData.workspace.id)
-            }
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/workspaces`, {
+        headers: { Authorization: `Bearer ${jwt}` },
+        cache: 'no-store'
+      })
+      const data = await res.json()
+      if (res.ok) {
+        if (data.workspaces && data.workspaces.length > 0) {
+          setWorkspaces(data.workspaces)
+        } else {
+          // Auto-create default Personal Workspace if none exist
+          const createRes = await fetch(`${BACKEND_URL}/api/workspaces`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${jwt}`,
+            },
+            body: JSON.stringify({ name: `${user.name}'s Workspace` }),
+          })
+          const createData = await createRes.json()
+          if (createRes.ok && createData.workspace) {
+            setWorkspaces([createData.workspace])
+            setActiveWorkspaceId(createData.workspace.id)
           }
         }
-      } catch (err) {
-        console.error('Failed to fetch workspaces:', err)
       }
+    } catch (err) {
+      console.error('Failed to fetch workspaces:', err)
     }
+  }
 
-    initWorkspaces()
+  // Fetch workspaces when authenticated
+  useEffect(() => {
+    fetchWorkspaces()
   }, [jwt, user])
 
   const handleCreateWorkspace = async (name: string) => {
@@ -132,6 +134,24 @@ export default function App() {
       }
     } catch (err) {
       console.error('Failed to delete workspace', err)
+    }
+  }
+
+  const handleRenameWorkspace = async (id: string, newName: string) => {
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/workspaces/${id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${jwt}`,
+        },
+        body: JSON.stringify({ name: newName })
+      })
+      if (res.ok) {
+        setWorkspaces((prev) => prev.map((w) => w.id === id ? { ...w, name: newName } : w))
+      }
+    } catch (err) {
+      console.error('Failed to rename workspace', err)
     }
   }
 
@@ -246,6 +266,19 @@ export default function App() {
           </div>
 
           <div className="flex items-center space-x-4">
+            <NotificationBell 
+              jwt={jwt} 
+              serverUrl={BACKEND_URL} 
+              onInvitationAccepted={fetchWorkspaces} 
+              onWorkspaceRemoved={(removedId) => {
+                setWorkspaces((prev) => prev.filter((w) => w.id !== removedId))
+                if (activeWorkspaceId === removedId) {
+                  setActiveWorkspaceId(null)
+                  setSelectedDoc(null)
+                }
+              }}
+            />
+            
             <div className="flex items-center space-x-2 bg-muted/40 border border-border/50 px-3 py-1.5 rounded-full">
               <span 
                 className="w-2.5 h-2.5 rounded-full border border-background" 
@@ -275,6 +308,7 @@ export default function App() {
               token={jwt}
               serverUrl={BACKEND_URL}
               documentTitle={selectedDoc.title}
+              readOnly={userRole === 'VIEWER'}
               onBack={() => setSelectedDoc(null)}
               onRename={(newTitle) => {
                 setSelectedDoc((prev) => (prev ? { ...prev, title: newTitle } : null))
@@ -294,6 +328,7 @@ export default function App() {
               token={jwt}
               serverUrl={BACKEND_URL}
               onSelectDocument={(doc) => setSelectedDoc(doc)}
+              onRoleChange={(role) => setUserRole(role)}
             />
           ) : (
             <Home 
@@ -302,6 +337,7 @@ export default function App() {
               onSelectWorkspace={(id) => setActiveWorkspaceId(id)}
               onCreateWorkspace={handleCreateWorkspace}
               onDeleteWorkspace={handleDeleteWorkspace}
+              onRenameWorkspace={handleRenameWorkspace}
             />
           )}
         </main>

@@ -17,6 +17,7 @@ interface CollaborativeEditorProps {
   token: string
   serverUrl: string
   documentTitle?: string
+  readOnly?: boolean
   onRename?: (newTitle: string) => void
   onBack?: () => void
 }
@@ -29,6 +30,7 @@ export function CollaborativeEditor({
   token,
   serverUrl,
   documentTitle = 'Untitled Document',
+  readOnly = false,
   onRename,
   onBack,
 }: CollaborativeEditorProps) {
@@ -230,6 +232,7 @@ export function CollaborativeEditor({
         awareness={awareness}
         user={{ name: userName, color: userColor }}
         documentTitle={documentTitle}
+        readOnly={readOnly}
         onRename={onRename}
         onBack={onBack}
         token={token}

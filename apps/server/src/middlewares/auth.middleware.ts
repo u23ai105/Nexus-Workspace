@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 // Extend Express Request object to include our custom user payload
 export interface AuthRequest extends Request {
   user?: { id: string; email: string };
+  file?: any;
 }
 
 export const authenticateJWT = (req: AuthRequest, res: Response, next: NextFunction) => {

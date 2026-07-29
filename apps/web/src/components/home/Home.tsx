@@ -3,6 +3,7 @@ import React, { useState } from 'react'
 interface Workspace {
   id: string
   name: string
+  userRole?: string
   createdAt?: string
 }
 
@@ -12,9 +13,10 @@ interface HomeProps {
   onSelectWorkspace: (id: string) => void
   onCreateWorkspace: (name: string) => Promise<void>
   onDeleteWorkspace: (id: string) => Promise<void>
+  onRenameWorkspace: (id: string, newName: string) => Promise<void>
 }
 
-export function Home({ workspaces, user, onSelectWorkspace, onCreateWorkspace, onDeleteWorkspace }: HomeProps) {
+export function Home({ workspaces, user, onSelectWorkspace, onCreateWorkspace, onDeleteWorkspace, onRenameWorkspace }: HomeProps) {
   const [isCreating, setIsCreating] = useState(false)
   const [newWorkspaceName, setNewWorkspaceName] = useState('')
   const [loading, setLoading] = useState(false)
@@ -52,7 +54,10 @@ export function Home({ workspaces, user, onSelectWorkspace, onCreateWorkspace, o
                 className="premium-card group cursor-pointer relative p-6 h-48 flex flex-col justify-between"
               >
                 {/* Glowing subtle gradient on hover */}
-                <div className={`absolute inset-0 opacity-0 group-hover:opacity-10 transition-opacity duration-500 bg-gradient-to-br from-transparent to-[rgb(var(--tint-${tints[tintIdx].split('-')[2]}))]`} />
+                <div 
+                  className="absolute inset-0 opacity-0 group-hover:opacity-10 transition-opacity duration-500 bg-gradient-to-br from-transparent" 
+                  style={{ '--tw-gradient-to': `rgb(var(--tint-${tints[tintIdx].split('-')[2]})) var(--tw-gradient-to-position)` } as React.CSSProperties}
+                />
                 
                 <div className="relative z-10">
                   <div className="flex items-center justify-between mb-4">
@@ -62,22 +67,44 @@ export function Home({ workspaces, user, onSelectWorkspace, onCreateWorkspace, o
                       </div>
                       <h2 className="text-xl font-medium tracking-tight group-hover:text-foreground transition-colors">{ws.name}</h2>
                     </div>
-                    
-                    {/* Delete Workspace Button */}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        if (confirm(`Are you sure you want to delete the workspace "${ws.name}"? This cannot be undone.`)) {
-                          onDeleteWorkspace(ws.id)
-                        }
-                      }}
-                      className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors opacity-0 group-hover:opacity-100"
-                      title="Delete Workspace"
-                    >
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
+                    <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      {/* Rename Workspace Button */}
+                      {(ws.userRole === 'OWNER' || ws.userRole === 'ADMIN') && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            const newName = prompt(`Enter new name for workspace "${ws.name}":`, ws.name)
+                            if (newName && newName.trim() !== ws.name) {
+                              onRenameWorkspace(ws.id, newName.trim())
+                            }
+                          }}
+                          className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
+                          title="Rename Workspace"
+                        >
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                          </svg>
+                        </button>
+                      )}
+
+                      {/* Delete Workspace Button */}
+                      {ws.userRole === 'OWNER' && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            if (confirm(`Are you sure you want to delete the workspace "${ws.name}"? This cannot be undone.`)) {
+                              onDeleteWorkspace(ws.id)
+                            }
+                          }}
+                          className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors"
+                          title="Delete Workspace"
+                        >
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
                 

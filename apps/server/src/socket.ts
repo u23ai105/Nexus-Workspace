@@ -195,6 +195,10 @@ export const createSocketServer = (server: HttpServer) => {
     const userId = socket.data.user?.id ?? 'unknown';
     console.log(`[Socket] Connected: ${socket.id} user=${userId}`);
 
+    if (userId !== 'unknown') {
+      socket.join(`user:${userId}`);
+    }
+
     let currentRoomName: string | null = null;
 
     /**
