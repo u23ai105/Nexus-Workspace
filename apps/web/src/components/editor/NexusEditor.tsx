@@ -13,6 +13,7 @@ import * as Y from 'yjs'
 import { Awareness, encodeAwarenessUpdate } from 'y-protocols/awareness'
 import { EditorToolbar } from './Toolbar'
 import { AuthorHighlight } from './AuthorHighlight'
+import { PollExtension } from './pollExtension'
 // Dedicated CSS for remote-user carets, name labels, and authorship highlights
 import './collaboration-cursors.css'
 
@@ -210,6 +211,7 @@ export function NexusEditor({ ydoc, awareness, user, documentTitle, readOnly = f
           class: 'rounded-lg max-w-full my-6 border border-border shadow-sm',
         },
       }),
+      PollExtension,
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [], // Stable — ydoc and awareness are created once per session in refs

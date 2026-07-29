@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 interface User {
   id: string;
   name: string | null;
+  username?: string | null;
   email: string;
 }
 
@@ -34,9 +35,30 @@ export const ManageTeamModal: React.FC<ManageTeamModalProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
-  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteQuery, setInviteQuery] = useState('');
   const [inviteRole, setInviteRole] = useState<'ADMIN' | 'EDITOR' | 'VIEWER'>('VIEWER');
   const [inviting, setInviting] = useState(false);
+  const [searchResults, setSearchResults] = useState<User[]>([]);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      if (inviteQuery.length >= 2 && !selectedUser) {
+        fetch(`${serverUrl}/api/users/search?q=${encodeURIComponent(inviteQuery)}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+          .then(res => res.json())
+          .then(data => {
+            setSearchResults(data.users || []);
+          })
+          .catch(() => {});
+      } else {
+        setSearchResults([]);
+      }
+    }, 300);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [inviteQuery, serverUrl, token, selectedUser]);
 
   useEffect(() => {
     fetchMembers();
@@ -61,7 +83,9 @@ export const ManageTeamModal: React.FC<ManageTeamModalProps> = ({
 
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inviteEmail.trim()) return;
+    const targetEmail = selectedUser ? selectedUser.email : inviteQuery.trim();
+    if (!targetEmail) return;
+    
     setInviting(true);
     setError(null);
     try {
@@ -71,12 +95,14 @@ export const ManageTeamModal: React.FC<ManageTeamModalProps> = ({
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ email: inviteEmail, role: inviteRole }),
+        body: JSON.stringify({ email: targetEmail, role: inviteRole }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to invite user');
       
-      setInviteEmail('');
+      setInviteQuery('');
+      setSelectedUser(null);
+      setSearchResults([]);
       fetchMembers(); // refresh
     } catch (err: any) {
       setError(err.message);
@@ -151,16 +177,56 @@ export const ManageTeamModal: React.FC<ManageTeamModalProps> = ({
           {(currentUserRole === 'OWNER' || currentUserRole === 'ADMIN') && (
           <div className="mb-8 p-5 rounded-lg border border-border bg-muted/20">
             <h3 className="text-sm font-medium text-foreground mb-3">Invite new members</h3>
-            <form onSubmit={handleInvite} className="flex items-center gap-3">
-              <div className="flex-1">
-                <input
-                  type="email"
-                  placeholder="Enter email address"
-                  value={inviteEmail}
-                  onChange={(e) => setInviteEmail(e.target.value)}
-                  className="w-full bg-background border border-border focus:border-primary text-sm rounded-md px-3 py-2 text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary transition-all shadow-sm"
-                  required
-                />
+            <form onSubmit={handleInvite} className="flex items-start gap-3">
+              <div className="flex-1 relative">
+                {selectedUser ? (
+                  <div className="w-full bg-background border border-primary text-sm rounded-md px-3 py-2 flex items-center justify-between shadow-sm">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-full bg-primary/20 text-primary flex items-center justify-center text-xs font-bold uppercase">
+                        {(selectedUser.name || selectedUser.username || selectedUser.email)[0]}
+                      </div>
+                      <span className="font-medium text-foreground">{selectedUser.name || selectedUser.username || selectedUser.email}</span>
+                      {selectedUser.username && <span className="text-muted-foreground">@{selectedUser.username}</span>}
+                    </div>
+                    <button type="button" onClick={() => { setSelectedUser(null); setInviteQuery(''); }} className="text-muted-foreground hover:text-destructive transition-colors">
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                  </div>
+                ) : (
+                  <input
+                    type="text"
+                    placeholder="Search by username or enter email..."
+                    value={inviteQuery}
+                    onChange={(e) => setInviteQuery(e.target.value)}
+                    className="w-full bg-background border border-border focus:border-primary text-sm rounded-md px-3 py-2 text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary transition-all shadow-sm"
+                  />
+                )}
+                
+                {!selectedUser && searchResults.length > 0 && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-card border border-border rounded-md shadow-lg z-50 max-h-60 overflow-y-auto">
+                    {searchResults.map((u) => (
+                      <div 
+                        key={u.id}
+                        onClick={() => setSelectedUser(u)}
+                        className="px-3 py-2 hover:bg-muted/50 cursor-pointer flex items-center justify-between border-b border-border/50 last:border-0"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-medium uppercase">
+                            {(u.name || u.username || u.email)[0]}
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="text-sm font-medium text-foreground">{u.name || u.username || u.email.split('@')[0]}</span>
+                            {u.username ? (
+                              <span className="text-xs text-muted-foreground">@{u.username}</span>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">{u.email}</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
               <select
                 value={inviteRole}
@@ -173,8 +239,8 @@ export const ManageTeamModal: React.FC<ManageTeamModalProps> = ({
               </select>
               <button
                 type="submit"
-                disabled={inviting || !inviteEmail}
-                className="bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-medium px-4 py-2 rounded-md transition-all shadow-sm disabled:opacity-50"
+                disabled={inviting || (!selectedUser && !inviteQuery.includes('@'))}
+                className="bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium px-6 py-2 rounded-md transition-all shadow-sm disabled:opacity-50"
               >
                 {inviting ? 'Sending...' : 'Invite'}
               </button>
@@ -223,8 +289,8 @@ export const ManageTeamModal: React.FC<ManageTeamModalProps> = ({
                         value={member.role}
                         onChange={(e) => handleUpdateRole(member.id, e.target.value)}
                         disabled={
-                          member.role === 'OWNER' || 
-                          (currentUserRole === 'ADMIN' && (member.role === 'OWNER' || member.role === 'ADMIN')) ||
+                          (member.role as string) === 'OWNER' || 
+                          (currentUserRole === 'ADMIN' && ((member.role as string) === 'OWNER' || (member.role as string) === 'ADMIN')) ||
                           (currentUserRole !== 'OWNER' && currentUserRole !== 'ADMIN')
                         }
                         className="bg-card border border-border text-xs rounded-md px-2 py-1 text-foreground focus:outline-none focus:border-primary disabled:opacity-50 disabled:cursor-not-allowed"
@@ -238,8 +304,8 @@ export const ManageTeamModal: React.FC<ManageTeamModalProps> = ({
                       <button
                         onClick={() => handleRemove(member.id)}
                         disabled={
-                          member.role === 'OWNER' ||
-                          (currentUserRole === 'ADMIN' && (member.role === 'OWNER' || member.role === 'ADMIN')) ||
+                          (member.role as string) === 'OWNER' ||
+                          (currentUserRole === 'ADMIN' && ((member.role as string) === 'OWNER' || (member.role as string) === 'ADMIN')) ||
                           (currentUserRole !== 'OWNER' && currentUserRole !== 'ADMIN')
                         }
                         className="text-muted-foreground hover:text-destructive p-1.5 rounded-md hover:bg-destructive/10 transition-colors disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed"

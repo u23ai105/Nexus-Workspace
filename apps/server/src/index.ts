@@ -7,6 +7,9 @@ import workspaceRoutes from './routes/workspace.route';
 import documentRoutes from './routes/document.route';
 import fileRoutes from './routes/file.route';
 import invitationRoutes from './routes/invitation.route';
+import userRoutes from './routes/user.route';
+import messageRoutes from './routes/message.route';
+import dmRoutes from './routes/dm.route';
 
 dotenv.config();
 
@@ -38,9 +41,12 @@ app.get('/health', (req: Request, res: Response) => {
 // API Routes
 app.use('/auth', authRoutes);
 app.use('/api/workspaces', workspaceRoutes);
+app.use('/api/workspaces/:workspaceId/messages', messageRoutes);
 app.use('/api/documents', documentRoutes);
 app.use('/api/files', fileRoutes);
 app.use('/api/invitations', invitationRoutes);
+app.use('/api/dms', dmRoutes);
+app.use('/api/users', userRoutes);
 
 // Start Server if not in test mode
 let server: any;

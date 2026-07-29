@@ -340,6 +340,92 @@ export const createSocketServer = (server: HttpServer) => {
       }
     });
 
+    /**
+     * Handle chat join
+     */
+    socket.on('chat:join', (workspaceId: string) => {
+      if (workspaceId) {
+        socket.join(`chat:${workspaceId}`);
+        console.log(`[Chat] User ${userId} joined chat for workspace ${workspaceId}`);
+      }
+    });
+
+    /**
+     * Handle new chat messages
+     */
+    socket.on('chat:message', async (data: { workspaceId: string; content: string }) => {
+      try {
+        if (!data.workspaceId || !data.content || userId === 'unknown') return;
+
+        // Save to DB
+        const message = await prisma.message.create({
+          data: {
+            workspaceId: data.workspaceId,
+            senderId: userId,
+            content: data.content
+          },
+          include: {
+            sender: {
+              select: {
+                id: true,
+                name: true,
+                username: true,
+                email: true
+              }
+            }
+          }
+        });
+
+        // Broadcast to workspace chat room
+        io.to(`chat:${data.workspaceId}`).emit('chat:message', message);
+      } catch (err) {
+        console.error(`[Chat] Error sending message from ${userId}:`, err);
+      }
+    });
+
+    /**
+     * Handle Global DM join
+     */
+    socket.on('dm:join', (otherUserId: string) => {
+      if (otherUserId && userId !== 'unknown') {
+        const roomName = `dm:${[userId, otherUserId].sort().join('-')}`;
+        socket.join(roomName);
+        console.log(`[DM] User ${userId} joined DM room ${roomName}`);
+      }
+    });
+
+    /**
+     * Handle Global DM message
+     */
+    socket.on('dm:message', async (data: { otherUserId: string; content: string }) => {
+      try {
+        if (!data.otherUserId || !data.content || userId === 'unknown') return;
+
+        const message = await prisma.directMessage.create({
+          data: {
+            senderId: userId,
+            receiverId: data.otherUserId,
+            content: data.content
+          },
+          include: {
+            sender: {
+              select: { id: true, name: true, username: true, email: true }
+            }
+          }
+        });
+
+        const roomName = `dm:${[userId, data.otherUserId].sort().join('-')}`;
+
+        // Broadcast to both users in the room
+        io.to(roomName).emit('dm:message', message);
+
+        // Also emit a notification to the receiver's personal global room if they have one open
+        io.to(`user:${data.otherUserId}`).emit('dm:notification', message);
+      } catch (err) {
+        console.error(`[DM] Error sending DM from ${userId}:`, err);
+      }
+    });
+
     socket.on('error', (err) => {
       console.error(`[Socket] Error on ${socket.id}:`, err);
     });

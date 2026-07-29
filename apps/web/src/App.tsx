@@ -3,7 +3,10 @@ import useSWR from 'swr'
 const CollaborativeEditor = lazy(() => import('./components/editor/CollaborativeEditor').then(m => ({ default: m.CollaborativeEditor })))
 import { DocumentDashboard } from './components/dashboard/DocumentDashboard'
 import { Home } from './components/home/Home'
-import { NotificationBell } from './components/ui/NotificationBell'
+import { NotificationBell } from './components/ui/NotificationBell';
+import { WorkspaceChat } from './components/dashboard/WorkspaceChat';
+import { GlobalChat } from './components/chat/GlobalChat';
+import { MessageCircle } from 'lucide-react';
 import type { DocumentItem } from './components/dashboard/DocumentCard'
 import './App.css'
 
@@ -17,17 +20,21 @@ function getRandomColor() {
 export default function App() {
   // Authentication states
   const [jwt, setJwt] = useState<string | null>(() => localStorage.getItem('nexus_jwt'))
-  const [user, setUser] = useState<{ id: string; email: string; name: string; color: string } | null>(() => {
+  const [user, setUser] = useState<{ id: string; email: string; name: string; username?: string; color: string } | null>(() => {
     const stored = localStorage.getItem('nexus_user')
     return stored ? JSON.parse(stored) : null
   })
-
   // Form states
+  const [isChatOpen, setIsChatOpen] = useState(false)
+  const [isGlobalChatOpen, setIsGlobalChatOpen] = useState(false)
+  const [activeDmUserId, setActiveDmUserId] = useState<string | null>(null)
+  const [activeDmUser, setActiveDmUser] = useState<any>(null)
   const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(() => localStorage.getItem('nexus_workspace_id'))
   const [selectedDoc, setSelectedDoc] = useState<DocumentItem | null>(null)
   const [userRole, setUserRole] = useState<string>('OWNER')
   const [isRegister, setIsRegister] = useState(false)
   const [name, setName] = useState('')
+  const [username, setUsername] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -175,7 +182,7 @@ export default function App() {
 
     const endpoint = isRegister ? '/auth/register' : '/auth/login'
     const body = isRegister 
-      ? { email, password, name: name || undefined } 
+      ? { email, password, name: name || undefined, username } 
       : { email, password }
 
     try {
@@ -208,6 +215,7 @@ export default function App() {
           id: data.user.id,
           email: data.user.email,
           name: data.user.name || email.split('@')[0],
+          username: data.user.username,
           color: getRandomColor(), // Assign random presence cursor color for session
         })
         setLoading(false)
@@ -220,7 +228,7 @@ export default function App() {
 
   // ── Authenticated Mode ──────────────────────────────────────────────────
   if (jwt && user) {
-    const activeWorkspace = workspaces.find((w) => w.id === activeWorkspaceId)
+    const activeWorkspace = workspaces.find((w: any) => w.id === activeWorkspaceId)
 
     return (
       <div className="flex flex-col h-screen overflow-hidden bg-background text-foreground font-sans selection:bg-tint-orange/30">
@@ -258,7 +266,7 @@ export default function App() {
                     }}
                     className="bg-transparent text-sm font-medium text-muted-foreground hover:text-foreground cursor-pointer focus:outline-none"
                   >
-                    {workspaces.map((ws) => (
+                    {workspaces.map((ws: any) => (
                       <option key={ws.id} value={ws.id} className="bg-card text-foreground">
                         {ws.name}
                       </option>
@@ -270,11 +278,39 @@ export default function App() {
           </div>
 
           <div className="flex items-center space-x-4">
+            {activeWorkspaceId && (
+              <button
+                onClick={() => setIsChatOpen(!isChatOpen)}
+                className={`p-2 rounded-full transition-colors ${
+                  isChatOpen 
+                    ? 'bg-primary/20 text-primary' 
+                    : 'text-muted-foreground hover:bg-muted/80 hover:text-foreground'
+                }`}
+                title="Toggle Workspace Chat"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+              </button>
+            )}
+
+            <button
+              onClick={() => setIsGlobalChatOpen(!isGlobalChatOpen)}
+              className={`p-2 rounded-full transition-colors relative ${
+                isGlobalChatOpen 
+                  ? 'bg-indigo-500/20 text-indigo-400' 
+                  : 'text-muted-foreground hover:bg-muted/80 hover:text-foreground'
+              }`}
+              title="Global Messages"
+            >
+              <MessageCircle size={20} />
+            </button>
+            
             <NotificationBell 
               jwt={jwt} 
               serverUrl={BACKEND_URL} 
               onInvitationAccepted={mutateWorkspaces} 
-              onWorkspaceRemoved={(removedId) => {
+              onWorkspaceRemoved={(removedId: string) => {
                 mutateWorkspaces({ workspaces: workspaces.filter((w: any) => w.id !== removedId) }, false)
                 if (activeWorkspaceId === removedId) {
                   setActiveWorkspaceId(null)
@@ -301,7 +337,8 @@ export default function App() {
         </header>
 
         {/* Body (Dashboard or Collaborative Editor) */}
-        <main className="flex-1 overflow-hidden relative z-10">
+        <main className="flex-1 overflow-hidden relative z-10 flex">
+          <div className="flex-1 h-full overflow-hidden relative">
           {selectedDoc ? (
             <Suspense fallback={<div className="flex-1 flex items-center justify-center h-full"><div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div></div>}>
               <CollaborativeEditor
@@ -344,6 +381,40 @@ export default function App() {
               onCreateWorkspace={handleCreateWorkspace}
               onDeleteWorkspace={handleDeleteWorkspace}
               onRenameWorkspace={handleRenameWorkspace}
+            />
+          )}
+          </div>
+          {activeWorkspaceId && isChatOpen && (
+            <WorkspaceChat
+              workspaceId={activeWorkspaceId}
+              token={jwt}
+              serverUrl={BACKEND_URL}
+              currentUser={user}
+              onClose={() => setIsChatOpen(false)}
+              onOpenDM={(user: any) => {
+                setActiveWorkspaceId(null);
+                setSelectedDoc(null);
+                setActiveDmUserId(user.id);
+                setActiveDmUser(user);
+                setIsGlobalChatOpen(true);
+              }}
+              onOpenDocument={(doc: any) => {
+                if (doc) setSelectedDoc(doc);
+              }}
+            />
+          )}
+          {isGlobalChatOpen && (
+            <GlobalChat
+              token={jwt}
+              serverUrl={BACKEND_URL}
+              currentUser={user}
+              onClose={() => {
+                setIsGlobalChatOpen(false)
+                setActiveDmUserId(null)
+                setActiveDmUser(null)
+              }}
+              initialActiveUserId={activeDmUserId}
+              initialActiveUser={activeDmUser}
             />
           )}
         </main>
@@ -412,19 +483,36 @@ export default function App() {
 
           <form onSubmit={handleAuthSubmit} className="space-y-5">
             {isRegister && (
-              <div className="space-y-1.5 group">
-                <label className="text-[11px] font-semibold text-white/50 tracking-wider uppercase transition-colors group-focus-within:text-purple-400">Full Name</label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    required
-                    placeholder="Jane Doe"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3.5 text-sm text-white placeholder-white/20 focus:outline-none focus:ring-1 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all duration-300"
-                  />
+              <>
+                <div className="space-y-1.5 group">
+                  <label className="text-[11px] font-semibold text-white/50 tracking-wider uppercase transition-colors group-focus-within:text-purple-400">Full Name</label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      required
+                      placeholder="Jane Doe"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3.5 text-sm text-white placeholder-white/20 focus:outline-none focus:ring-1 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all duration-300"
+                    />
+                  </div>
                 </div>
-              </div>
+
+                <div className="space-y-1.5 group">
+                  <label className="text-[11px] font-semibold text-white/50 tracking-wider uppercase transition-colors group-focus-within:text-purple-400">Username</label>
+                  <div className="relative flex items-center">
+                    <span className="absolute left-4 text-white/40 pointer-events-none">@</span>
+                    <input
+                      type="text"
+                      required
+                      placeholder="janedoe"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+                      className="w-full bg-white/5 border border-white/10 rounded-xl pl-9 pr-4 py-3.5 text-sm text-white placeholder-white/20 focus:outline-none focus:ring-1 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all duration-300"
+                    />
+                  </div>
+                </div>
+              </>
             )}
 
             <div className="space-y-1.5 group">

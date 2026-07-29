@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import useSWR from 'swr';
 import { DocumentCard, type DocumentItem } from './DocumentCard';
 import { ManageTeamModal } from './ManageTeamModal';
@@ -235,7 +235,7 @@ export const DocumentDashboard: React.FC<DocumentDashboardProps> = ({
     }
   };
 
-  const filteredDocs = documents.filter((doc) => {
+  const filteredDocs = documents.filter((doc: any) => {
     const query = searchQuery.toLowerCase();
     return (
       doc.title.toLowerCase().includes(query) ||
@@ -399,7 +399,7 @@ export const DocumentDashboard: React.FC<DocumentDashboardProps> = ({
               <div className="flex justify-between items-center mb-6">
                 <h3 className="text-lg font-medium">Files</h3>
                 {userRole !== 'VIEWER' && (
-                  <label htmlFor="upload-file-header" className="cursor-pointer bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-medium px-4 py-2 rounded-md transition-all shadow-sm inline-flex items-center space-x-2">
+                  <label htmlFor="upload-file-header" className="cursor-pointer bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium px-4 py-2 rounded-md transition-all shadow-sm shadow-orange-500/30 inline-flex items-center space-x-2">
                     <svg className="w-4 h-4 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                     </svg>
@@ -427,8 +427,8 @@ export const DocumentDashboard: React.FC<DocumentDashboardProps> = ({
                   {userRole !== 'VIEWER' ? (
                     <>
                       <p className="text-sm text-muted-foreground max-w-sm mb-6">No files uploaded yet. Upload images, PDFs, or other documents to share with the workspace.</p>
-                      <label htmlFor="upload-file-empty" className={`cursor-pointer bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-medium px-5 py-2.5 rounded-md transition-all shadow-sm inline-flex items-center space-x-2 ${uploadingFile ? 'opacity-50 pointer-events-none' : ''}`}>
-                        <span>{uploadingFile ? 'Uploading...' : 'Click to Upload First File'}</span>
+                      <label htmlFor="upload-file-empty" className={`cursor-pointer bg-orange-500 hover:bg-orange-600 text-white font-semibold px-8 py-3 rounded-lg transition-all shadow-lg shadow-orange-500/30 hover:shadow-orange-500/40 active:scale-95 text-base inline-flex items-center space-x-2 ${uploadingFile ? 'opacity-50 pointer-events-none' : ''}`}>
+                        <span>{uploadingFile ? 'Uploading...' : 'Upload First File'}</span>
                         <input
                           id="upload-file-empty"
                           type="file"
@@ -446,17 +446,17 @@ export const DocumentDashboard: React.FC<DocumentDashboardProps> = ({
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                   {/* Upload File Card directly in grid */}
                   {userRole !== 'VIEWER' && (
-                    <label htmlFor="upload-file-card" className={`premium-card group cursor-pointer border-dashed border-2 border-border/60 hover:border-tint-blue/50 hover:bg-tint-blue/5 p-4 flex flex-col items-center justify-center transition-all min-h-[200px] ${uploadingFile ? 'opacity-50 pointer-events-none' : ''}`}>
-                      <div className="w-12 h-12 rounded-full bg-background border border-border group-hover:border-tint-blue/30 flex items-center justify-center mb-3 shadow-sm text-muted-foreground group-hover:text-tint-blue transition-colors pointer-events-none">
+                    <label htmlFor="upload-file-card" className={`premium-card group cursor-pointer border-dashed border-2 border-border/60 hover:border-orange-500/50 hover:bg-orange-500/5 p-4 flex flex-col items-center justify-center transition-all min-h-[200px] ${uploadingFile ? 'opacity-50 pointer-events-none' : ''}`}>
+                      <div className="w-12 h-12 rounded-full bg-background border border-border group-hover:border-orange-500/30 flex items-center justify-center mb-3 shadow-sm text-muted-foreground group-hover:text-orange-500 transition-colors pointer-events-none">
                         {uploadingFile ? (
-                          <div className="w-5 h-5 border-2 border-tint-blue border-t-transparent rounded-full animate-spin" />
+                          <div className="w-5 h-5 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
                         ) : (
                           <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                           </svg>
                         )}
                       </div>
-                      <span className="font-medium text-muted-foreground group-hover:text-tint-blue transition-colors text-center pointer-events-none">
+                      <span className="font-medium text-muted-foreground group-hover:text-orange-500 transition-colors text-center pointer-events-none">
                         {uploadingFile ? 'Uploading...' : 'Upload File'}
                       </span>
                       <input
@@ -469,7 +469,7 @@ export const DocumentDashboard: React.FC<DocumentDashboardProps> = ({
                     </label>
                   )}
 
-                  {files.map(file => (
+                  {files.map((file: any) => (
                     <div key={file.id} className="premium-card p-4 flex flex-col group relative overflow-hidden">
                       <div className="flex-1 flex items-center justify-center bg-muted/50 rounded-md mb-3 min-h-[120px] p-2 overflow-hidden">
                         {file.mimeType.startsWith('image/') ? (
@@ -566,7 +566,7 @@ export const DocumentDashboard: React.FC<DocumentDashboardProps> = ({
                 </div>
               )}
 
-              {filteredDocs.map((doc) => (
+              {filteredDocs.map((doc: any) => (
                 <DocumentCard
                   key={doc.id}
                   doc={doc}

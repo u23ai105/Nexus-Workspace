@@ -9,6 +9,7 @@ import {
   Highlighter, Link2,
   Undo2, Redo2,
   RemoveFormatting,
+  BarChart2
 } from 'lucide-react'
 
 interface ToolbarProps {
@@ -217,6 +218,15 @@ export function EditorToolbar({ editor }: ToolbarProps) {
         title="Clear Formatting"
       >
         <RemoveFormatting size={16} />
+      </ToolbarButton>
+
+      <Divider />
+
+      <ToolbarButton
+        onClick={() => editor.chain().focus().insertContent({ type: 'poll' }).run()}
+        title="Insert Poll (/poll)"
+      >
+        <BarChart2 size={16} />
       </ToolbarButton>
     </div>
   )

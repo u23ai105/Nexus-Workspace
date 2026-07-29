@@ -45,7 +45,7 @@ export const getMembers = async (req: AuthRequest, res: Response) => {
       where: { workspaceId },
       include: {
         user: {
-          select: { id: true, name: true, email: true }
+          select: { id: true, name: true, email: true, username: true }
         }
       },
       orderBy: { createdAt: 'asc' }

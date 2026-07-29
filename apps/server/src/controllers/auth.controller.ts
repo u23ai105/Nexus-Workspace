@@ -9,6 +9,7 @@ const registerSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6, "Password must be at least 6 characters"),
   name: z.string().optional(),
+  username: z.string().min(3, "Username must be at least 3 characters").max(20).regex(/^[a-zA-Z0-9_]+$/, "Username can only contain letters, numbers, and underscores"),
 });
 
 const loginSchema = z.object({
@@ -19,12 +20,23 @@ const loginSchema = z.object({
 export const register = async (req: Request, res: Response) => {
   try {
     // 1. Validate the incoming request body
-    const { email, password, name } = registerSchema.parse(req.body);
+    const { email, password, name, username } = registerSchema.parse(req.body);
 
     // 2. Check if user already exists
-    const existingUser = await prisma.user.findUnique({ where: { email } });
+    const existingUser = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { email },
+          { username }
+        ]
+      }
+    });
+    
     if (existingUser) {
-      return res.status(400).json({ error: 'User already exists' });
+      if (existingUser.email === email) {
+        return res.status(400).json({ error: 'User with this email already exists' });
+      }
+      return res.status(400).json({ error: 'Username is already taken' });
     }
 
     // 3. Hash the password before saving to the database
@@ -35,6 +47,7 @@ export const register = async (req: Request, res: Response) => {
     const user = await prisma.user.create({
       data: {
         email,
+        username,
         password: hashedPassword,
         name,
       },
@@ -51,7 +64,7 @@ export const register = async (req: Request, res: Response) => {
     res.status(201).json({
       message: 'User registered successfully',
       token,
-      user: { id: user.id, email: user.email, name: user.name },
+      user: { id: user.id, email: user.email, name: user.name, username: user.username },
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
