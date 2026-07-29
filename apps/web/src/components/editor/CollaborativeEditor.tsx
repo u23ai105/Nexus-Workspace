@@ -232,6 +232,8 @@ export function CollaborativeEditor({
         documentTitle={documentTitle}
         onRename={onRename}
         onBack={onBack}
+        token={token}
+        serverUrl={serverUrl}
       />
     </div>
   )

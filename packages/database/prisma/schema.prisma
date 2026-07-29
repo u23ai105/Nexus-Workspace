@@ -18,6 +18,7 @@ model User {
 
   workspaces Workspace[]
   documents  Document[]
+  files      File[]
 }
 
 model Workspace {
@@ -26,6 +27,7 @@ model Workspace {
   ownerId   String
   owner     User       @relation(fields: [ownerId], references: [id])
   documents Document[]
+  files     File[]
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
 }
@@ -44,4 +46,17 @@ model Document {
   updatedAt   DateTime  @updatedAt
 
   @@index([workspaceId, isArchived])
+}
+
+model File {
+  id          String    @id @default(uuid())
+  filename    String
+  url         String
+  mimeType    String
+  size        Int
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  uploaderId  String
+  uploader    User      @relation(fields: [uploaderId], references: [id])
+  createdAt   DateTime  @default(now())
 }

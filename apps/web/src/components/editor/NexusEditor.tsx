@@ -7,6 +7,7 @@ import Underline from '@tiptap/extension-underline'
 import TextAlign from '@tiptap/extension-text-align'
 import Highlight from '@tiptap/extension-highlight'
 import Placeholder from '@tiptap/extension-placeholder'
+import Image from '@tiptap/extension-image'
 import CharacterCount from '@tiptap/extension-character-count'
 import * as Y from 'yjs'
 import { Awareness, encodeAwarenessUpdate } from 'y-protocols/awareness'
@@ -24,6 +25,8 @@ interface NexusEditorProps {
   documentTitle: string
   onRename?: (newTitle: string) => void
   onBack?: () => void
+  token: string
+  serverUrl: string
 }
 
 // A single online user record extracted from the Yjs Awareness state map.
@@ -128,7 +131,7 @@ function OnlineBar({ users }: { users: OnlineUser[] }) {
 
 // ── Main Component: NexusEditor ────────────────────────────────────────────
 
-export function NexusEditor({ ydoc, awareness, user, documentTitle, onRename, onBack }: NexusEditorProps) {
+export function NexusEditor({ ydoc, awareness, user, documentTitle, onRename, onBack, token, serverUrl }: NexusEditorProps) {
   // ── Live user list from awareness ──────────────────────────────────────
   const onlineUsers = useAwarenessUsers(awareness)
 
@@ -199,6 +202,13 @@ export function NexusEditor({ ydoc, awareness, user, documentTitle, onRename, on
         placeholder: 'Start writing… — your name appears below each passage you type',
       }),
       CharacterCount,
+      Image.configure({
+        inline: false,
+        allowBase64: true,
+        HTMLAttributes: {
+          class: 'rounded-lg max-w-full my-6 border border-border shadow-sm',
+        },
+      }),
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [], // Stable — ydoc and awareness are created once per session in refs
@@ -207,48 +217,78 @@ export function NexusEditor({ ydoc, awareness, user, documentTitle, onRename, on
   const [isRenaming, setIsRenaming] = useState(false)
   const [titleInput, setTitleInput] = useState(documentTitle)
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved')
+  const [isUploading, setIsUploading] = useState(false)
 
-  useEffect(() => {
-    setTitleInput(documentTitle)
-  }, [documentTitle])
-
-  useEffect(() => {
-    const handleDocUpdate = (_update: Uint8Array, origin: unknown) => {
-      if (origin !== 'server') {
-        setSaveStatus('saving')
-        const timer = setTimeout(() => {
-          setSaveStatus('saved')
-        }, 3200)
-        return () => clearTimeout(timer)
+  // Upload handler
+  const handleImageUpload = async (file: File, view: any, event: Event) => {
+    // Only handle images
+    if (!file.type.startsWith('image/')) return false
+    
+    // Prevent default behavior so browser doesn't try to open the file
+    event.preventDefault()
+    
+    setIsUploading(true)
+    
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      // Extract workspace ID from URL or document state if possible. 
+      // Since it's not directly in props, we might need to get it from context.
+      // But we can extract it from localStorage or window location for now.
+      const workspaceId = localStorage.getItem('nexus_workspace_id')
+      if (workspaceId) {
+        formData.append('workspaceId', workspaceId)
       }
-    }
-    ydoc.on('update', handleDocUpdate)
-    return () => {
-      ydoc.off('update', handleDocUpdate)
-    }
-  }, [ydoc])
 
-  // Dirty state protection when attempting to close tab while saving
-  useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (saveStatus === 'saving' || saveStatus === 'unsaved') {
-        e.preventDefault()
-        e.returnValue = ''
+      const res = await fetch(`${serverUrl}/api/files/upload`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`
+        },
+        body: formData
+      })
+      
+      const data = await res.json()
+      
+      if (res.ok && data.file) {
+        // Insert the image into the editor at the current cursor position
+        const { schema } = view.state
+        const coordinates = view.posAtCoords({ left: (event as MouseEvent).clientX, top: (event as MouseEvent).clientY })
+        const node = schema.nodes.image.create({ src: data.file.url })
+        const transaction = view.state.tr.insert(coordinates?.pos || view.state.selection.to, node)
+        view.dispatch(transaction)
+      } else {
+        alert('Failed to upload image: ' + (data.error || 'Unknown error'))
       }
+    } catch (err) {
+      console.error('Upload error:', err)
+      alert('Error uploading image')
+    } finally {
+      setIsUploading(false)
     }
-    window.addEventListener('beforeunload', handleBeforeUnload)
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
-  }, [saveStatus])
-
-  const handleTitleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (titleInput.trim() && titleInput !== documentTitle && onRename) {
-      onRename(titleInput.trim())
-    }
-    setIsRenaming(false)
+    
+    return true
   }
 
-  const editor = useEditor({ extensions })
+  const editor = useEditor({ 
+    extensions,
+    editorProps: {
+      handleDrop: function(view, event, slice, moved) {
+        if (!moved && event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files[0]) {
+          handleImageUpload(event.dataTransfer.files[0], view, event)
+          return true
+        }
+        return false
+      },
+      handlePaste: function(view, event, slice) {
+        if (event.clipboardData && event.clipboardData.files && event.clipboardData.files[0]) {
+          handleImageUpload(event.clipboardData.files[0], view, event)
+          return true
+        }
+        return false
+      }
+    }
+  })
 
   return (
     <div className="nexus-editor flex-1 bg-grid-pattern bg-background overflow-y-auto h-full relative">
@@ -302,7 +342,13 @@ export function NexusEditor({ ydoc, awareness, user, documentTitle, onRename, on
 
         {/* Live Cloud Save Status Badge */}
         <div className="flex items-center space-x-3 shrink-0">
-          {saveStatus === 'saved' && (
+          {isUploading && (
+            <span className="inline-flex items-center space-x-1.5 text-xs font-medium text-foreground bg-muted border border-border px-2.5 py-1 rounded-md">
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+              <span>Uploading Image...</span>
+            </span>
+          )}
+          {saveStatus === 'saved' && !isUploading && (
             <span className="inline-flex items-center space-x-1.5 text-xs font-medium text-muted-foreground bg-muted/50 border border-border px-2.5 py-1 rounded-md">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
               <span>Saved to Cloud</span>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 export interface DocumentItem {
   id: string;
@@ -34,6 +34,21 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isRenaming, setIsRenaming] = useState(false);
   const [titleInput, setTitleInput] = useState(doc.title);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsMenuOpen(false);
+      }
+    };
+    if (isMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isMenuOpen]);
 
   const handleRenameSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -119,7 +134,7 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
           </div>
 
           {/* Action Menu Trigger */}
-          <div className="relative" onClick={(e) => e.stopPropagation()}>
+          <div className="relative" ref={menuRef} onClick={(e) => e.stopPropagation()}>
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
               className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
@@ -131,10 +146,8 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
 
             {/* Dropdown Menu */}
             {isMenuOpen && (
-              <>
-                <div className="fixed inset-0 z-10" onClick={() => setIsMenuOpen(false)} />
-                <div className="absolute right-0 mt-1 w-44 bg-popover border border-border rounded-md shadow-lg py-1 z-20 divide-y divide-border">
-                  <div className="py-1">
+              <div className="absolute right-0 mt-1 w-44 bg-popover border border-border rounded-md shadow-lg py-1 z-50 divide-y divide-border">
+                <div className="py-1">
                     <button
                       onClick={() => {
                         setIsMenuOpen(false);
@@ -212,7 +225,6 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
                     )}
                   </div>
                 </div>
-              </>
             )}
           </div>
         </div>

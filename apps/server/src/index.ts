@@ -5,10 +5,11 @@ import dotenv from 'dotenv';
 import authRoutes from './routes/auth.route';
 import workspaceRoutes from './routes/workspace.route';
 import documentRoutes from './routes/document.route';
+import fileRoutes from './routes/file.route';
 
 dotenv.config();
 
-const app = express();
+export const app = express();
 const PORT = process.env.PORT || 4000;
 
 // Security Middlewares
@@ -37,28 +38,32 @@ app.get('/health', (req: Request, res: Response) => {
 app.use('/auth', authRoutes);
 app.use('/api/workspaces', workspaceRoutes);
 app.use('/api/documents', documentRoutes);
+app.use('/api/files', fileRoutes);
 
-// Start Server
-const server = app.listen(PORT, () => {
-  console.log(`Server is running on http://localhost:${PORT}`);
-});
-
-// Socket.io real-time engine
-import { createSocketServer } from './socket';
-createSocketServer(server);
-
-// Graceful shutdown handlers for fast and clean dev reloads
-import { prisma } from '@nexus/database';
-
-const shutdown = async () => {
-  console.log('[Server] Graceful shutdown initiated...');
-  server.close(() => {
-    console.log('[Server] HTTP server closed.');
+// Start Server if not in test mode
+let server: any;
+if (process.env.NODE_ENV !== 'test') {
+  server = app.listen(PORT, () => {
+    console.log(`Server is running on http://localhost:${PORT}`);
   });
-  await prisma.$disconnect();
-  console.log('[Server] Database pool disconnected.');
-  process.exit(0);
-};
 
-process.on('SIGTERM', shutdown);
-process.on('SIGINT', shutdown);
+  // Socket.io real-time engine
+  const { createSocketServer } = require('./socket');
+  createSocketServer(server);
+
+  // Graceful shutdown handlers for fast and clean dev reloads
+  const { prisma } = require('@nexus/database');
+
+  const shutdown = async () => {
+    console.log('[Server] Graceful shutdown initiated...');
+    server.close(() => {
+      console.log('[Server] HTTP server closed.');
+    });
+    await prisma.$disconnect();
+    console.log('[Server] Database pool disconnected.');
+    process.exit(0);
+  };
+
+  process.on('SIGTERM', shutdown);
+  process.on('SIGINT', shutdown);
+}

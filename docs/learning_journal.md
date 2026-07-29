@@ -1193,3 +1193,32 @@ The editor was upgraded from a flat document to an "Elevated Canvas".
 ### 4. Workspace Deletion Feature
 * Added `DELETE /api/workspaces/:id` endpoint in `workspace.controller.ts` with ownership verification.
 * Wired up a trash icon hover button in `Home.tsx` to allow deleting workspaces from the UI.
+
+## Phase 5: Media Infrastructure & Testing (July 2026)
+
+### System Design and Testing Principles
+Following the newly established `AGENTS.md` rules, this phase placed a heavy emphasis on System Design and Comprehensive Testing:
+* Added a `test` script in `apps/server/package.json` utilizing `vitest` and `supertest`.
+* Extracted the Express `app` initialization from `index.ts` to allow testing the server without binding to a port.
+* Built comprehensive integration test suites in `apps/server/src/tests/workspace.test.ts` and `file.test.ts`.
+
+### Database Schema Updates
+* Added the `File` model to `schema.prisma`. It tracks `filename`, `url`, `mimeType`, `size`, and relations to `Workspace` and `User` (`uploaderId`).
+* Updated inverse relationships in `Workspace` and `User` models and ran `npx prisma db push`.
+
+### Backend: File Upload API & Supabase Integration
+* Integrated `@supabase/supabase-js` and `multer`.
+* Created `file.controller.ts` to handle file buffering in memory (via `multer`) and stream uploads directly to the Supabase Storage bucket (`nexus-storage`).
+* The controller uses the `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` (or anon key) from the server's `.env` to authenticate with the bucket. It then stores the resulting public URL and file metadata in the Postgres `File` table.
+* Wired up the `POST /api/files/upload` and `GET /api/files` routes in `file.route.ts`.
+
+### Frontend: Editor Image Integration
+* Installed `@tiptap/extension-image` in `apps/web`.
+* Added `Image` extension configuration in `NexusEditor.tsx` with customized Tailwind classes for inline styling (`rounded-lg shadow-sm max-w-full my-6`).
+* Overrode the Tiptap editor's `handleDrop` and `handlePaste` events to intercept image files. These files are asynchronously uploaded via `FormData` to the new `/api/files/upload` endpoint. Upon success, the returned public URL is injected into the document state as an image node, instantly syncing across all connected peers.
+
+### Frontend: Workspace Drive UI
+* Expanded the `DocumentDashboard.tsx` sidebar with a new "Workspace Drive" tab.
+* Implemented a `fetchFiles` data loading hook.
+* Designed a responsive grid to display uploaded files (both images and standard files). Images are shown as visual thumbnails, while non-image files fall back to a monospaced extension block.
+* Included an "Upload File" button utilizing a hidden `<input type="file" />` that streams directly to the new media backend.

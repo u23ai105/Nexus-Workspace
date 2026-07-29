@@ -27,7 +27,7 @@
     --input: 229 229 229;
     
     /* Primary / Secondary Neutral Tones */
-    --primary: 24 24 27;       /* #18181b */
+    --primary: var(--tint-orange);
     --primary-foreground: 250 250 250;
     
     --secondary: 244 244 245;  /* #f4f4f5 */
@@ -62,7 +62,7 @@
       --border: 38 38 38;        /* #262626 */
       --input: 38 38 38;
       
-      --primary: 250 250 250;
+      --primary: var(--tint-orange);
       --primary-foreground: 6 6 6;
       
       --secondary: 38 38 38;
@@ -132,7 +132,7 @@
 @layer components {
   /* Podium-style Premium Card */
   .premium-card {
-    @apply bg-card border border-border/60 shadow-sm rounded-xl overflow-hidden transition-all duration-300;
+    @apply bg-card border border-border/60 shadow-sm rounded-xl transition-all duration-300;
   }
   
   .premium-card:hover {
