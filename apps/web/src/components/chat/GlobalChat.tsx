@@ -25,6 +25,13 @@ interface Message {
   };
 }
 
+interface User {
+  id: string;
+  name: string | null;
+  username: string | null;
+  email: string;
+}
+
 interface GlobalChatProps {
   token: string;
   serverUrl: string;
@@ -50,6 +57,10 @@ export const GlobalChat: React.FC<GlobalChatProps> = ({
   const [loading, setLoading] = useState(true);
   const [socket, setSocket] = useState<Socket | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<User[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
 
   useEffect(() => {
     if (initialActiveUserId) {
@@ -108,6 +119,31 @@ export const GlobalChat: React.FC<GlobalChatProps> = ({
       fetchSummaries();
     }
   }, [activeDmUserId, token, serverUrl]);
+
+  useEffect(() => {
+    if (searchQuery.trim().length >= 2) {
+      setIsSearching(true);
+      const delay = setTimeout(async () => {
+        try {
+          const res = await fetch(`${serverUrl}/api/users/search?q=${encodeURIComponent(searchQuery)}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          if (res.ok) {
+            const data = await res.json();
+            setSearchResults(data.users || []);
+          }
+        } catch (err) {
+          console.error("Failed to search users", err);
+        } finally {
+          setIsSearching(false);
+        }
+      }, 300);
+      return () => clearTimeout(delay);
+    } else {
+      setSearchResults([]);
+      setIsSearching(false);
+    }
+  }, [searchQuery, serverUrl, token]);
 
   useEffect(() => {
     const newSocket = io(serverUrl, {
@@ -192,46 +228,99 @@ export const GlobalChat: React.FC<GlobalChatProps> = ({
           </div>
         ) : !activeDmUserId ? (
           // Contacts List
-          <div className="flex flex-col">
-            {summaries.length === 0 ? (
-              <div className="text-center p-6 text-slate-400 mt-10">
-                <p className="text-sm">No recent messages.</p>
-                <p className="text-xs mt-2">Chat with a teammate by clicking their @username in a workspace chat.</p>
+          <div className="flex flex-col flex-1 h-full">
+            <div className="p-3 border-b border-white/5 shrink-0">
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Search users..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full bg-[#1E1E2D] border border-white/10 focus:border-indigo-500 text-sm rounded-md pl-9 pr-3 py-1.5 text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-all"
+                />
+                <svg className="w-4 h-4 text-slate-400 absolute left-3 top-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
               </div>
-            ) : (
-              summaries.map((summary) => (
-                <button 
-                  key={summary.user.id}
-                  onClick={() => {
-                    setActiveDmUserId(summary.user.id);
-                    setActiveDmUser(summary.user);
-                  }}
-                  className="flex items-center gap-3 p-4 hover:bg-white/5 border-b border-white/5 transition-colors text-left"
-                >
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold text-sm shrink-0">
-                    {summary.user.name?.charAt(0).toUpperCase() || summary.user.username?.charAt(0).toUpperCase()}
+            </div>
+            
+            <div className="flex-1 overflow-y-auto">
+              {searchQuery.trim().length >= 2 ? (
+                // Search Results
+                isSearching ? (
+                  <div className="flex justify-center py-4"><div className="w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div></div>
+                ) : searchResults.length === 0 ? (
+                  <div className="text-center p-6 text-slate-400 mt-2">
+                    <p className="text-sm">No users found.</p>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex justify-between items-center mb-0.5">
-                      <p className="text-sm font-medium text-slate-200 truncate">
-                        {summary.user.name || summary.user.username}
-                      </p>
-                      <span className="text-[10px] text-slate-500">
-                        {new Date(summary.lastMessageAt).toLocaleDateString([], { month: 'short', day: 'numeric' })}
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-400 truncate pr-2">
-                      {summary.lastMessage}
-                    </p>
+                ) : (
+                  searchResults.map(user => (
+                    <button 
+                      key={user.id}
+                      onClick={() => {
+                        setSearchQuery('');
+                        setActiveDmUserId(user.id);
+                        setActiveDmUser(user);
+                      }}
+                      className="flex items-center gap-3 p-4 hover:bg-white/5 border-b border-white/5 transition-colors text-left w-full"
+                    >
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold text-sm shrink-0">
+                        {user.name?.charAt(0).toUpperCase() || user.username?.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-slate-200 truncate">
+                          {user.name || user.username}
+                        </p>
+                        <p className="text-xs text-slate-500 truncate">
+                          {user.email}
+                        </p>
+                      </div>
+                    </button>
+                  ))
+                )
+              ) : (
+                // Recent DMs
+                summaries.length === 0 ? (
+                  <div className="text-center p-6 text-slate-400 mt-10">
+                    <p className="text-sm">No recent messages.</p>
+                    <p className="text-xs mt-2">Search for a teammate above to start a conversation.</p>
                   </div>
-                  {summary.unreadCount > 0 && (
-                    <div className="w-5 h-5 rounded-full bg-indigo-500 flex items-center justify-center text-[10px] font-bold text-white">
-                      {summary.unreadCount}
-                    </div>
-                  )}
-                </button>
-              ))
-            )}
+                ) : (
+                  summaries.map((summary) => (
+                    <button 
+                      key={summary.user.id}
+                      onClick={() => {
+                        setActiveDmUserId(summary.user.id);
+                        setActiveDmUser(summary.user);
+                      }}
+                      className="flex items-center gap-3 p-4 hover:bg-white/5 border-b border-white/5 transition-colors text-left w-full"
+                    >
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold text-sm shrink-0">
+                        {summary.user.name?.charAt(0).toUpperCase() || summary.user.username?.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex justify-between items-center mb-0.5">
+                          <p className="text-sm font-medium text-slate-200 truncate">
+                            {summary.user.name || summary.user.username}
+                          </p>
+                          <span className="text-[10px] text-slate-500">
+                            {new Date(summary.lastMessageAt).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-400 truncate pr-2">
+                          {summary.lastMessage}
+                        </p>
+                      </div>
+                      {summary.unreadCount > 0 && (
+                        <div className="w-5 h-5 rounded-full bg-indigo-500 flex items-center justify-center text-[10px] font-bold text-white shrink-0">
+                          {summary.unreadCount}
+                        </div>
+                      )}
+                    </button>
+                  ))
+                )
+              )}
+            </div>
           </div>
         ) : (
           // Chat View

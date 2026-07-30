@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import useSWR from 'swr';
 import { DocumentCard, type DocumentItem } from './DocumentCard';
 import { ManageTeamModal } from './ManageTeamModal';
+import { WorkspaceChat } from './WorkspaceChat';
 
 export interface FileItem {
   id: string;
@@ -19,6 +20,8 @@ interface DocumentDashboardProps {
   serverUrl: string;
   onSelectDocument: (doc: DocumentItem) => void;
   onRoleChange?: (role: string) => void;
+  currentUser: any;
+  onOpenDM?: (user: any) => void;
 }
 
 export const DocumentDashboard: React.FC<DocumentDashboardProps> = ({
@@ -27,9 +30,12 @@ export const DocumentDashboard: React.FC<DocumentDashboardProps> = ({
   serverUrl,
   onSelectDocument,
   onRoleChange,
+  currentUser,
+  onOpenDM
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<'all' | 'trash' | 'drive'>('all');
+  const [isChatOpen, setIsChatOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [uploadingFile, setUploadingFile] = useState(false);
   const [isTeamModalOpen, setIsTeamModalOpen] = useState(false);
@@ -312,6 +318,22 @@ export const DocumentDashboard: React.FC<DocumentDashboardProps> = ({
             </button>
 
             <button
+              onClick={() => setIsChatOpen(!isChatOpen)}
+              className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                isChatOpen
+                  ? 'bg-tint-orange/20 text-tint-orange'
+                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+              }`}
+            >
+              <span className="flex items-center space-x-3">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+                <span>Workspace Chat</span>
+              </span>
+            </button>
+
+            <button
               onClick={() => setIsTeamModalOpen(true)}
               className="w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium transition-colors text-muted-foreground hover:bg-muted hover:text-foreground mt-4"
             >
@@ -582,6 +604,19 @@ export const DocumentDashboard: React.FC<DocumentDashboardProps> = ({
           )}
         </div>
       </main>
+
+      {/* Slide-out Workspace Chat */}
+      {isChatOpen && (
+        <WorkspaceChat
+          workspaceId={workspaceId}
+          token={token}
+          serverUrl={serverUrl}
+          currentUser={currentUser}
+          onClose={() => setIsChatOpen(false)}
+          onOpenDocument={onSelectDocument}
+          onOpenDM={onOpenDM}
+        />
+      )}
       
       {isTeamModalOpen && (
         <ManageTeamModal

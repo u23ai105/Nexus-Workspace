@@ -4,7 +4,7 @@ const CollaborativeEditor = lazy(() => import('./components/editor/Collaborative
 import { DocumentDashboard } from './components/dashboard/DocumentDashboard'
 import { Home } from './components/home/Home'
 import { NotificationBell } from './components/ui/NotificationBell';
-import { WorkspaceChat } from './components/dashboard/WorkspaceChat';
+
 import { GlobalChat } from './components/chat/GlobalChat';
 import { MessageCircle } from 'lucide-react';
 import type { DocumentItem } from './components/dashboard/DocumentCard'
@@ -25,7 +25,7 @@ export default function App() {
     return stored ? JSON.parse(stored) : null
   })
   // Form states
-  const [isChatOpen, setIsChatOpen] = useState(false)
+
   const [isGlobalChatOpen, setIsGlobalChatOpen] = useState(false)
   const [activeDmUserId, setActiveDmUserId] = useState<string | null>(null)
   const [activeDmUser, setActiveDmUser] = useState<any>(null)
@@ -278,22 +278,6 @@ export default function App() {
           </div>
 
           <div className="flex items-center space-x-4">
-            {activeWorkspaceId && (
-              <button
-                onClick={() => setIsChatOpen(!isChatOpen)}
-                className={`p-2 rounded-full transition-colors ${
-                  isChatOpen 
-                    ? 'bg-primary/20 text-primary' 
-                    : 'text-muted-foreground hover:bg-muted/80 hover:text-foreground'
-                }`}
-                title="Toggle Workspace Chat"
-              >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                </svg>
-              </button>
-            )}
-
             <button
               onClick={() => setIsGlobalChatOpen(!isGlobalChatOpen)}
               className={`p-2 rounded-full transition-colors relative ${
@@ -372,6 +356,14 @@ export default function App() {
               serverUrl={BACKEND_URL}
               onSelectDocument={(doc) => setSelectedDoc(doc)}
               onRoleChange={(role) => setUserRole(role)}
+              currentUser={user}
+              onOpenDM={(user: any) => {
+                setActiveWorkspaceId(null);
+                setSelectedDoc(null);
+                setActiveDmUserId(user.id);
+                setActiveDmUser(user);
+                setIsGlobalChatOpen(true);
+              }}
             />
           ) : (
             <Home 
@@ -384,25 +376,6 @@ export default function App() {
             />
           )}
           </div>
-          {activeWorkspaceId && isChatOpen && (
-            <WorkspaceChat
-              workspaceId={activeWorkspaceId}
-              token={jwt}
-              serverUrl={BACKEND_URL}
-              currentUser={user}
-              onClose={() => setIsChatOpen(false)}
-              onOpenDM={(user: any) => {
-                setActiveWorkspaceId(null);
-                setSelectedDoc(null);
-                setActiveDmUserId(user.id);
-                setActiveDmUser(user);
-                setIsGlobalChatOpen(true);
-              }}
-              onOpenDocument={(doc: any) => {
-                if (doc) setSelectedDoc(doc);
-              }}
-            />
-          )}
           {isGlobalChatOpen && (
             <GlobalChat
               token={jwt}
