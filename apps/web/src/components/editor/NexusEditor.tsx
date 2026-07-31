@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useRef } from 'react'
 import { EditorContent, useEditor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Collaboration from '@tiptap/extension-collaboration'
@@ -14,6 +14,8 @@ import { Awareness, encodeAwarenessUpdate } from 'y-protocols/awareness'
 import { EditorToolbar } from './Toolbar'
 import { AuthorHighlight } from './AuthorHighlight'
 import { PollExtension } from './pollExtension'
+import { PresentationBanner } from './PresentationBanner'
+import { AIFloatingMenu } from './AIFloatingMenu'
 // Dedicated CSS for remote-user carets, name labels, and authorship highlights
 import './collaboration-cursors.css'
 
@@ -134,6 +136,8 @@ function OnlineBar({ users }: { users: OnlineUser[] }) {
 // ── Main Component: NexusEditor ────────────────────────────────────────────
 
 export function NexusEditor({ ydoc, awareness, user, documentTitle, readOnly = false, onRename, onBack, token, serverUrl }: NexusEditorProps) {
+  const scrollRef = useRef<HTMLDivElement>(null)
+  
   // ── Live user list from awareness ──────────────────────────────────────
   const onlineUsers = useAwarenessUsers(awareness)
 
@@ -226,6 +230,93 @@ export function NexusEditor({ ydoc, awareness, user, documentTitle, readOnly = f
   const [saveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved')
   const [isUploading, setIsUploading] = useState(false)
 
+  // ── Presentation ("Follow Me") State ─────────────────────────────────────
+  const [localIsPresenting, setLocalIsPresenting] = useState(false)
+  const [presenterInfo, setPresenterInfo] = useState<{ name: string; scrollTop: number; scrollHeight: number; clientId: number } | null>(null)
+
+  useEffect(() => {
+    const handleAwarenessChange = () => {
+      let foundPresenter = false
+      awareness.getStates().forEach((state, clientId) => {
+        if (clientId === awareness.clientID) return
+
+        const p = (state as any).presentation
+        const u = (state as any).user
+        
+        if (p?.isPresenting) {
+          foundPresenter = true
+          setPresenterInfo({
+            name: u?.name || 'Someone',
+            scrollTop: p.scrollTop,
+            scrollHeight: p.scrollHeight,
+            clientId,
+          })
+        }
+      })
+      
+      if (!foundPresenter) setPresenterInfo(null)
+    }
+    
+    awareness.on('change', handleAwarenessChange)
+    handleAwarenessChange()
+    return () => awareness.off('change', handleAwarenessChange)
+  }, [awareness])
+
+
+  // ── Scroll Sync for "Follow Me" ──────────────────────────────────────────
+  useEffect(() => {
+    const scrollContainer = scrollRef.current
+    if (!scrollContainer) return
+
+    const handleScroll = () => {
+      if (localIsPresenting) {
+        awareness.setLocalStateField('presentation', {
+          isPresenting: true,
+          scrollTop: scrollContainer.scrollTop,
+          scrollHeight: scrollContainer.scrollHeight,
+        })
+      }
+    }
+
+    scrollContainer.addEventListener('scroll', handleScroll)
+    return () => scrollContainer.removeEventListener('scroll', handleScroll)
+  }, [localIsPresenting, awareness])
+
+  // Lock scroll if following
+  useEffect(() => {
+    if (presenterInfo && !localIsPresenting) {
+      const scrollContainer = scrollRef.current
+      if (scrollContainer) {
+        // Simple proportional scrolling
+        const scrollRatio = presenterInfo.scrollHeight > 0 ? presenterInfo.scrollTop / presenterInfo.scrollHeight : 0
+        scrollContainer.scrollTop = scrollRatio * scrollContainer.scrollHeight
+      }
+    }
+  }, [presenterInfo, localIsPresenting])
+
+  const togglePresentation = () => {
+    const newState = !localIsPresenting
+    setLocalIsPresenting(newState)
+    if (newState && scrollRef.current) {
+      awareness.setLocalStateField('presentation', {
+        isPresenting: true,
+        scrollTop: scrollRef.current.scrollTop,
+        scrollHeight: scrollRef.current.scrollHeight,
+      })
+    } else {
+      awareness.setLocalStateField('presentation', null)
+    }
+  }
+
+  // Cleanup presentation on unmount
+  useEffect(() => {
+    return () => {
+      if (localIsPresenting) {
+        awareness.setLocalStateField('presentation', null)
+      }
+    }
+  }, [localIsPresenting, awareness])
+
   // Upload handler
   const handleImageUpload = async (file: File, view: any, event: Event) => {
     // Only handle images
@@ -300,6 +391,13 @@ export function NexusEditor({ ydoc, awareness, user, documentTitle, readOnly = f
     editable: !readOnly,
   })
 
+  // Lock editor when following someone
+  useEffect(() => {
+    if (editor) {
+      editor.setEditable(!readOnly && !presenterInfo)
+    }
+  }, [editor, readOnly, presenterInfo])
+
   const handleTitleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (titleInput.trim() && titleInput !== documentTitle && onRename) {
@@ -309,9 +407,27 @@ export function NexusEditor({ ydoc, awareness, user, documentTitle, readOnly = f
   }
 
   return (
-    <div className="nexus-editor flex-1 bg-grid-pattern bg-background overflow-y-auto h-full relative">
-      {/* Top Header Bar with Back Button, Inline Title, and Status Badge */}
-      <div className="flex items-center justify-between px-6 py-3.5 bg-background/80 backdrop-blur-xl border-b border-border/50 sticky top-0 z-20 shadow-sm">
+    <div 
+      ref={scrollRef}
+      className={`nexus-editor-container bg-background h-full overflow-y-auto relative overflow-x-hidden ${presenterInfo && !localIsPresenting ? 'overflow-hidden' : ''}`}
+    >
+      {/* Sticky Header Group */}
+      <div className="sticky top-0 z-40 w-full flex flex-col shadow-sm">
+        {/* Presentation Banner */}
+        {(localIsPresenting || presenterInfo) && (
+          <PresentationBanner
+            isPresenter={localIsPresenting}
+            presenterName={presenterInfo?.name || ''}
+            viewerCount={onlineUsers.length - 1}
+            onStop={() => {
+              if (localIsPresenting) togglePresentation()
+              else setPresenterInfo(null)
+            }}
+          />
+        )}
+
+        {/* Top Header Bar with Back Button, Inline Title, and Status Badge */}
+        <div className="flex items-center justify-between px-6 py-3.5 bg-background/90 backdrop-blur-xl border-b border-border/50 w-full">
         <div className="flex items-center space-x-4 flex-1 min-w-0 mr-4">
           {onBack && (
             <button
@@ -329,7 +445,7 @@ export function NexusEditor({ ydoc, awareness, user, documentTitle, readOnly = f
           )}
 
           <div className="flex-1 min-w-0">
-            {isRenaming && !readOnly ? (
+            {isRenaming && !readOnly && !presenterInfo ? (
               <form onSubmit={handleTitleSubmit}>
                 <input
                   type="text"
@@ -347,19 +463,34 @@ export function NexusEditor({ ydoc, awareness, user, documentTitle, readOnly = f
               </form>
             ) : (
               <div
-                onClick={() => { if (!readOnly) setIsRenaming(true) }}
-                className={`group flex items-center space-x-2 py-0.5 px-2 -ml-2 rounded-sm w-fit ${readOnly ? '' : 'cursor-pointer hover:bg-muted/80 transition-colors'}`}
-                title={readOnly ? "Read Only" : "Click to rename document inline"}
+                onClick={() => { if (!readOnly && !presenterInfo) setIsRenaming(true) }}
+                className={`group flex items-center space-x-2 py-0.5 px-2 -ml-2 rounded-sm w-fit ${readOnly || presenterInfo ? '' : 'cursor-pointer hover:bg-muted/80 transition-colors'}`}
+                title={readOnly || presenterInfo ? "Read Only" : "Click to rename document inline"}
               >
                 <h2 className="text-lg font-semibold text-foreground truncate">{documentTitle}</h2>
-                {!readOnly && <span className="text-xs text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">✏️</span>}
+                {!readOnly && !presenterInfo && <span className="text-xs text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">✏️</span>}
               </div>
             )}
           </div>
         </div>
 
-        {/* Live Cloud Save Status Badge */}
         <div className="flex items-center space-x-3 shrink-0">
+          {!readOnly && (
+            <button
+              onClick={togglePresentation}
+              disabled={!!presenterInfo && !localIsPresenting}
+              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                localIsPresenting
+                  ? 'bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500/20'
+                  : presenterInfo
+                  ? 'bg-muted text-muted-foreground opacity-50 cursor-not-allowed'
+                  : 'bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20'
+              }`}
+            >
+              {localIsPresenting ? 'Stop Presenting' : 'Start Presenting'}
+            </button>
+          )}
+
           {isUploading && (
             <span className="inline-flex items-center space-x-1.5 text-xs font-medium text-foreground bg-muted border border-border px-2.5 py-1 rounded-md">
               <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
@@ -380,20 +511,25 @@ export function NexusEditor({ ydoc, awareness, user, documentTitle, readOnly = f
           )}
         </div>
       </div>
+      </div> {/* End Sticky Header Group */}
 
-      <div className="relative z-10 max-w-5xl mx-auto pb-24">
+      <div className="relative z-10 max-w-5xl mx-auto pb-24 min-h-full flex flex-col">
         {/* Live presence bar — shows online count + all connected authors */}
       <OnlineBar users={onlineUsers} />
 
-      {/* Formatting toolbar */}
-      <EditorToolbar editor={editor} />
+      <>
+        {/* Formatting toolbar */}
+        <EditorToolbar editor={editor} />
 
-      {/* The ProseMirror / Tiptap editable surface */}
-      <div className="nexus-editor__content-wrapper">
-        <EditorContent editor={editor} className="nexus-editor__content" />
-      </div>
+          {/* The ProseMirror / Tiptap editable surface */}
+          <div className="nexus-editor__content-wrapper w-full h-fit min-h-[70vh]">
+            <EditorContent editor={editor} className="nexus-editor__content" />
+          </div>
 
-        <WordCount editor={editor} />
+          <WordCount editor={editor} />
+          
+        <AIFloatingMenu editor={editor} token={token} serverUrl={serverUrl} />
+      </>
       </div>
     </div>
   )

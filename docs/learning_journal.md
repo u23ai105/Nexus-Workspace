@@ -1222,3 +1222,52 @@ Following the newly established `AGENTS.md` rules, this phase placed a heavy emp
 * Implemented a `fetchFiles` data loading hook.
 * Designed a responsive grid to display uploaded files (both images and standard files). Images are shown as visual thumbnails, while non-image files fall back to a monospaced extension block.
 * Included an "Upload File" button utilizing a hidden `<input type="file" />` that streams directly to the new media backend.
+
+---
+
+## Phase 4: Identity & Access (Workspace Invites & RBAC)
+
+### 1. Workspace Invitations & Notification Bell
+We implemented a secure invitation system allowing Workspace Owners to invite other registered users to their workspaces.
+* **Database Schema (`schema.prisma`):** We added a `WorkspaceMember` model with a `role` enum (`OWNER`, `EDITOR`, `VIEWER`), and an `Invitation` model tracking `status` (`PENDING`, `ACCEPTED`, `REJECTED`).
+* **Backend API (`invitation.controller.ts` & `member.controller.ts`):** We created REST endpoints to generate invitations, fetch pending invitations, and accept/reject them. Accepting an invitation automatically creates a `WorkspaceMember` record, granting the user access to the workspace.
+* **Frontend UI (`NotificationBell.tsx`):** We built a real-time notification bell component in the app header. It polls or listens for new invitations and displays a dropdown allowing users to accept or decline invites instantly.
+* **Access Control:** We updated `DocumentDashboard.tsx` and the backend routes to enforce Role-Based Access Control (RBAC). For example, `VIEWER`s cannot create or rename documents, while `EDITOR`s and `OWNER`s can.
+
+---
+
+## Phase 6: Real-time Communication (Workspace Chat)
+
+### 1. Persistent Workspace Chat Integration
+We introduced a persistent chat sidebar for each workspace to allow team members to communicate contextually alongside their documents.
+* **Database Schema (`schema.prisma`):** Added a `Message` model that relates to a `Workspace` and a `User` (sender).
+* **Backend Architecture (`socket.ts` & `message.controller.ts`):** 
+  - Created REST endpoints to fetch the historical message history of a workspace (`GET /api/workspaces/:workspaceId/messages`).
+  - Integrated Socket.io for real-time delivery. When a user sends a message, it is saved to the database via REST and instantly broadcasted to all users in the `workspace_${workspaceId}` socket room.
+* **Frontend Implementation (`WorkspaceChat.tsx`):** Built a sliding sidebar component that connects to the workspace socket room, displays historical messages, and appends incoming real-time messages.
+
+---
+
+## Phase 7: Global DMs & Smart Autocomplete
+
+### 1. Direct Messaging (Global Chat)
+We expanded the communication suite to include user-to-user direct messaging across the entire platform.
+* **Database Updates (`schema.prisma`):** Added a `DirectMessage` model tracking `senderId` and `receiverId`.
+* **Backend Implementation (`dm.controller.ts`):** Created endpoints to fetch DM history between two specific users, and an endpoint to fetch a summary of all recent contacts.
+* **Frontend UI (`GlobalChat.tsx`):** Designed a WhatsApp-style sliding panel accessible from the home screen. It features a left-side contact list of recent conversations and a right-side active chat window.
+
+### 2. Smart Autocomplete System (Mentions & Document Linking)
+We implemented a powerful Slash-command and Mention autocomplete system within the `WorkspaceChat.tsx`.
+* **`@` Mentions:** Typing `@` triggers a popover dropdown listing all members of the workspace. We built fallback logic to display the user's real name if a unique `@username` hasn't been set. Clicking an `@mention` in the chat dynamically routes the user out of the workspace and directly into a Global DM with that person.
+* **`/` Commands (Document & File Linking):** Typing `/` searches both Workspace Documents (rich text) and Workspace Drive Files (media/attachments). When sent, these are rendered as interactive links in the chat. Clicking a document link instantly opens the Collaborative Editor, while clicking a file link opens/downloads the raw file from Supabase Storage.
+### Feature 3: Nexus Copilot (Context-Aware AI)
+- **Concept:** A floating, context-aware AI assistant built directly into the text editor, allowing users to select text and perform AI actions (Summarize, Extract Tasks, Rewrite) instantly.
+- **Backend Architecture:** 
+  - Integrated the official `@google/generative-ai` SDK.
+  - Built a new Express controller (`ai.controller.ts`) and route (`/api/ai/prompt`) using the `gemini-2.0-flash` model.
+  - Ensured AI routes are protected by the same JWT `authenticateJWT` middleware as the rest of the application.
+- **Frontend Integration:**
+  - Built `AIFloatingMenu.tsx`, an intricate React component that listens to ProseMirror/Tiptap's `selectionUpdate` event to dynamically position a floating menu precisely above the user's cursor.
+  - Executed a fetch call to the backend with the user's current JWT token.
+  - Rendered a beautifully animated popover displaying the AI's streaming response, with one-click buttons to "Replace Selection" or "Insert Below" using the `editor.chain().focus().insertContent().run()` API.
+  - Added a "✨ Ask AI Copilot" button in the main `Toolbar.tsx` that artificially selects the entire document and triggers the copilot menu, providing a quick way to analyze the entire page.

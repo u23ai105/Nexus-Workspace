@@ -70,8 +70,14 @@ model WorkspaceMember {
   @@index([userId])
 }
 
+enum DocumentType {
+  TEXT
+  CANVAS
+}
+
 model Document {
-  id          String    @id @default(uuid())
+  id          String       @id @default(uuid())
+  type        DocumentType @default(TEXT)
   title       String    @default("Untitled Document")
   yjsState    Bytes?
   textContent String?

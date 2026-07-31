@@ -8,6 +8,7 @@ import {
 } from 'y-protocols/awareness'
 import * as decoding from 'lib0/decoding'
 import { NexusEditor } from './NexusEditor'
+import { TldrawCanvas } from './TldrawCanvas'
 
 interface CollaborativeEditorProps {
   documentId: string
@@ -17,12 +18,35 @@ interface CollaborativeEditorProps {
   token: string
   serverUrl: string
   documentTitle?: string
+  documentType?: 'TEXT' | 'CANVAS'
+  initialContent?: string | null
   readOnly?: boolean
   onRename?: (newTitle: string) => void
   onBack?: () => void
 }
 
-export function CollaborativeEditor({
+export function CollaborativeEditor(props: CollaborativeEditorProps) {
+  if (props.documentType === 'CANVAS') {
+    return (
+      <TldrawCanvas 
+        documentId={props.documentId}
+        userId={props.userId}
+        userName={props.userName}
+        token={props.token}
+        serverUrl={props.serverUrl}
+        documentTitle={props.documentTitle || 'Untitled Canvas'}
+        initialContent={props.initialContent}
+        readOnly={props.readOnly}
+        onRename={props.onRename}
+        onBack={props.onBack}
+      />
+    )
+  }
+
+  return <CollaborativeTextEditor {...props} />
+}
+
+function CollaborativeTextEditor({
   documentId,
   userId,
   userName,

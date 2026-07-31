@@ -90,7 +90,7 @@ export const DocumentDashboard: React.FC<DocumentDashboardProps> = ({
   };
 
   // Create new document
-  const handleCreateDocument = async (e?: React.MouseEvent) => {
+  const handleCreateDocument = async (type: 'TEXT' | 'CANVAS' = 'TEXT', e?: React.MouseEvent) => {
     if (e) {
       e.preventDefault();
       e.stopPropagation();
@@ -104,7 +104,7 @@ export const DocumentDashboard: React.FC<DocumentDashboardProps> = ({
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ workspaceId }),
+        body: JSON.stringify({ workspaceId, type }),
       });
       const data = await res.json();
       if (res.ok && data.document) {
@@ -256,16 +256,29 @@ export const DocumentDashboard: React.FC<DocumentDashboardProps> = ({
         <div>
           {/* New Document Action - hidden for VIEWERs */}
           {userRole !== 'VIEWER' && (
-            <button
-              onClick={handleCreateDocument}
-              disabled={creating}
-              className="w-full bg-orange-500 hover:bg-orange-600 text-white font-medium py-2.5 px-4 rounded-md shadow-sm flex items-center justify-center space-x-2 transition-all duration-200 active:scale-95 disabled:opacity-50 mb-6"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              <span>{creating ? 'Creating...' : 'New Document'}</span>
-            </button>
+            <div className="flex flex-col space-y-2 mb-6">
+              <button
+                onClick={() => handleCreateDocument('TEXT')}
+                disabled={creating}
+                className="w-full bg-orange-500 hover:bg-orange-600 text-white font-medium py-2 px-3 rounded-md shadow-sm flex items-center justify-center space-x-2 transition-all duration-200 active:scale-95 disabled:opacity-50 text-sm"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <span>{creating ? 'Creating...' : 'New Text Doc'}</span>
+              </button>
+              
+              <button
+                onClick={() => handleCreateDocument('CANVAS')}
+                disabled={creating}
+                className="w-full bg-purple-500 hover:bg-purple-600 text-white font-medium py-2 px-3 rounded-md shadow-sm flex items-center justify-center space-x-2 transition-all duration-200 active:scale-95 disabled:opacity-50 text-sm"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+                </svg>
+                <span>{creating ? 'Creating...' : 'New Canvas Board'}</span>
+              </button>
+            </div>
           )}
 
           {/* Navigation Links */}
@@ -552,40 +565,72 @@ export const DocumentDashboard: React.FC<DocumentDashboardProps> = ({
                   : 'Deleted documents will appear here for recovery.'}
               </p>
               {activeTab === 'all' && !searchQuery && userRole !== 'VIEWER' && (
-                <button
-                  onClick={handleCreateDocument}
-                  disabled={creating}
-                  className="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-8 py-3 rounded-lg transition-all shadow-lg shadow-orange-500/30 hover:shadow-orange-500/40 active:scale-95 text-base flex items-center space-x-2 disabled:opacity-50"
-                >
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                  </svg>
-                  <span>{creating ? 'Creating...' : 'Create Your First Document'}</span>
-                </button>
+                <div className="flex flex-col sm:flex-row gap-4 items-center justify-center">
+                  <button
+                    onClick={(e) => handleCreateDocument('TEXT', e)}
+                    disabled={creating}
+                    className="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-6 py-3 rounded-lg transition-all shadow-lg shadow-orange-500/30 hover:shadow-orange-500/40 active:scale-95 text-base flex items-center space-x-2 disabled:opacity-50"
+                  >
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                    <span>{creating ? 'Creating...' : 'New Text Document'}</span>
+                  </button>
+                  <button
+                    onClick={(e) => handleCreateDocument('CANVAS', e)}
+                    disabled={creating}
+                    className="bg-purple-500 hover:bg-purple-600 text-white font-semibold px-6 py-3 rounded-lg transition-all shadow-lg shadow-purple-500/30 hover:shadow-purple-500/40 active:scale-95 text-base flex items-center space-x-2 disabled:opacity-50"
+                  >
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                    <span>{creating ? 'Creating...' : 'New Canvas Board'}</span>
+                  </button>
+                </div>
               )}
             </div>
           ) : (
             /* Document Grid */
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {/* High-visibility New Document Card */}
+              {/* High-visibility New Document Cards */}
               {activeTab === 'all' && !searchQuery && userRole !== 'VIEWER' && (
-                <div
-                  onClick={handleCreateDocument}
-                  className={`premium-card group cursor-pointer border-2 border-primary/40 bg-primary/5 hover:border-primary hover:bg-primary/10 p-6 h-48 flex flex-col items-center justify-center transition-all shadow-sm ${creating ? 'opacity-50 pointer-events-none' : ''}`}
-                >
-                  <div className="w-12 h-12 rounded-full bg-primary text-primary-foreground flex items-center justify-center mb-3 shadow-md transition-transform group-hover:scale-110">
-                    {creating ? (
-                      <div className="w-5 h-5 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
-                    ) : (
-                      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                      </svg>
-                    )}
+                <>
+                  <div
+                    onClick={(e) => handleCreateDocument('TEXT', e)}
+                    className={`premium-card group cursor-pointer border-2 border-primary/40 bg-primary/5 hover:border-primary hover:bg-primary/10 p-6 h-48 flex flex-col items-center justify-center transition-all shadow-sm ${creating ? 'opacity-50 pointer-events-none' : ''}`}
+                  >
+                    <div className="w-12 h-12 rounded-full bg-primary text-primary-foreground flex items-center justify-center mb-3 shadow-md transition-transform group-hover:scale-110">
+                      {creating ? (
+                        <div className="w-5 h-5 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                      )}
+                    </div>
+                    <span className="font-semibold text-primary transition-colors text-lg mt-1">
+                      {creating ? 'Creating...' : 'New Text Doc'}
+                    </span>
                   </div>
-                  <span className="font-semibold text-primary transition-colors text-lg mt-1">
-                    {creating ? 'Creating...' : 'New Document'}
-                  </span>
-                </div>
+
+                  <div
+                    onClick={(e) => handleCreateDocument('CANVAS', e)}
+                    className={`premium-card group cursor-pointer border-2 border-purple-500/40 bg-purple-500/5 hover:border-purple-500 hover:bg-purple-500/10 p-6 h-48 flex flex-col items-center justify-center transition-all shadow-sm ${creating ? 'opacity-50 pointer-events-none' : ''}`}
+                  >
+                    <div className="w-12 h-12 rounded-full bg-purple-500 text-white flex items-center justify-center mb-3 shadow-md transition-transform group-hover:scale-110">
+                      {creating ? (
+                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+                        </svg>
+                      )}
+                    </div>
+                    <span className="font-semibold text-purple-500 transition-colors text-lg mt-1">
+                      {creating ? 'Creating...' : 'New Canvas'}
+                    </span>
+                  </div>
+                </>
               )}
 
               {filteredDocs.map((doc: any) => (

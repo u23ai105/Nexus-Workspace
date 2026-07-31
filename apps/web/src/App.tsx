@@ -334,6 +334,8 @@ export default function App() {
                 token={jwt}
                 serverUrl={BACKEND_URL}
                 documentTitle={selectedDoc.title}
+                documentType={selectedDoc.type}
+                initialContent={selectedDoc.textContent}
                 readOnly={userRole === 'VIEWER'}
                 onBack={() => setSelectedDoc(null)}
                 onRename={(newTitle) => {

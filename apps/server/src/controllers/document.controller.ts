@@ -17,6 +17,7 @@ const getUserRole = async (userId: string, workspaceId: string): Promise<string 
 const createDocumentSchema = z.object({
   workspaceId: z.string().min(1, "Workspace ID is required"),
   title: z.string().optional(),
+  type: z.enum(['TEXT', 'CANVAS']).optional(),
 });
 
 const updateDocumentSchema = z.object({
@@ -58,6 +59,7 @@ export const getDocuments = async (req: AuthRequest, res: Response) => {
         title: true,
         textContent: true,
         isArchived: true,
+        type: true,
         createdAt: true,
         updatedAt: true,
         creator: {
@@ -150,6 +152,7 @@ export const createDocument = async (req: AuthRequest, res: Response) => {
         title: finalTitle,
         workspaceId,
         creatorId: userId,
+        type: req.body.type === 'CANVAS' ? 'CANVAS' : 'TEXT',
       },
     });
 

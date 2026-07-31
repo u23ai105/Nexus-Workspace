@@ -301,6 +301,20 @@ export const createSocketServer = (server: HttpServer) => {
     });
 
     /**
+     * Handle canvas-update for tldraw sync
+     * Client sends changes; server broadcasts them to others
+     */
+    socket.on('canvas-update', (data: any) => {
+      if (!currentRoomName) {
+        console.warn(`[Canvas] Received update from ${socket.id} but not in a room`);
+        return;
+      }
+      
+      // Broadcast the update to all other clients in the room
+      socket.to(currentRoomName).emit('canvas-update', data);
+    });
+
+    /**
      * Handle awareness updates (user presence, cursor position, etc.)
      */
     socket.on('awareness', (data: Uint8Array | number[]) => {

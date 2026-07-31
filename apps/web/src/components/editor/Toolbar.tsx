@@ -9,7 +9,8 @@ import {
   Highlighter, Link2,
   Undo2, Redo2,
   RemoveFormatting,
-  BarChart2
+  BarChart2,
+  Sparkles
 } from 'lucide-react'
 
 interface ToolbarProps {
@@ -227,6 +228,17 @@ export function EditorToolbar({ editor }: ToolbarProps) {
         title="Insert Poll (/poll)"
       >
         <BarChart2 size={16} />
+      </ToolbarButton>
+      
+      <ToolbarButton
+        onClick={() => {
+          // Trigger a dummy text selection to force the AI menu to appear for the whole document
+          const length = editor.state.doc.content.size
+          editor.commands.setTextSelection({ from: 1, to: Math.max(1, length - 1) })
+        }}
+        title="✨ Ask AI Copilot (Selects all text)"
+      >
+        <Sparkles size={16} className="text-purple-500" />
       </ToolbarButton>
     </div>
   )

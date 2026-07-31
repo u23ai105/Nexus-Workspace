@@ -10,6 +10,7 @@ import invitationRoutes from './routes/invitation.route';
 import userRoutes from './routes/user.route';
 import messageRoutes from './routes/message.route';
 import dmRoutes from './routes/dm.route';
+import aiRoutes from './routes/ai.route';
 
 dotenv.config();
 
@@ -47,6 +48,7 @@ app.use('/api/files', fileRoutes);
 app.use('/api/invitations', invitationRoutes);
 app.use('/api/dms', dmRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/ai', aiRoutes);
 
 // Start Server if not in test mode
 let server: any;
