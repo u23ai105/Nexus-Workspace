@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Socket } from 'socket.io-client';
 import Peer from 'peerjs';
-import { Mic, MicOff, Users, StopCircle, Radio } from 'lucide-react';
+import { Mic, MicOff, Users, StopCircle } from 'lucide-react';
 
 interface PresentationBarProps {
   socket: Socket | null;
@@ -105,7 +105,7 @@ export const PresentationBar: React.FC<PresentationBarProps> = ({
     if (isActive) {
       const peer = new Peer(`${workspaceId}-${userId}`); // deterministic ID
       
-      peer.on('open', (id) => {
+      peer.on('open', (id: string) => {
         console.log('My peer ID is: ' + id);
       });
 
@@ -117,9 +117,9 @@ export const PresentationBar: React.FC<PresentationBarProps> = ({
           stream.getAudioTracks()[0].enabled = false;
 
           // Answer incoming calls
-          peer.on('call', (call) => {
+          peer.on('call', (call: any) => {
             call.answer(stream); // Answer with our stream
-            call.on('stream', (remoteStream) => {
+            call.on('stream', (remoteStream: MediaStream) => {
               setPeers(prev => ({ ...prev, [call.peer]: remoteStream }));
             });
           });
@@ -165,17 +165,6 @@ export const PresentationBar: React.FC<PresentationBarProps> = ({
     }
   };
 
-  const startPresentation = () => {
-    if (userRole === 'VIEWER') return;
-    if (socket) {
-      socket.emit('presentation:start', {
-        workspaceId,
-        documentId: currentDocumentId,
-        role: userRole
-      });
-    }
-  };
-
   const stopPresentation = () => {
     if (socket && presenterId === userId) {
       socket.emit('presentation:stop', workspaceId);
@@ -183,21 +172,9 @@ export const PresentationBar: React.FC<PresentationBarProps> = ({
   };
 
   const isPresenter = presenterId === userId;
-  const canPresent = userRole !== 'VIEWER';
 
   if (!isActive) {
-    if (!canPresent) return null;
-    return (
-      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
-        <button
-          onClick={startPresentation}
-          className="bg-primary/90 hover:bg-primary text-primary-foreground backdrop-blur-sm px-6 py-3 rounded-full font-medium shadow-xl flex items-center space-x-2 transition-transform hover:scale-105"
-        >
-          <Radio size={20} />
-          <span>Start "Follow Me"</span>
-        </button>
-      </div>
-    );
+    return null;
   }
 
   return (

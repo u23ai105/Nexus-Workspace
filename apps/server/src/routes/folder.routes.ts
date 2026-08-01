@@ -9,9 +9,10 @@ const router = Router({ mergeParams: true });
 router.get('/', async (req, res) => {
   try {
     const { workspaceId } = req.params as { workspaceId: string };
+    const isArchived = req.query.isArchived === 'true';
     
     const folders = await prisma.folder.findMany({
-      where: { workspaceId },
+      where: { workspaceId, isArchived },
       orderBy: { createdAt: 'desc' }
     });
     
@@ -47,11 +48,14 @@ router.post('/', async (req, res) => {
 router.patch('/:folderId', async (req, res) => {
   try {
     const { folderId } = req.params;
-    const { name } = req.body;
+    const { name, isArchived } = req.body;
     
     const folder = await prisma.folder.update({
       where: { id: folderId },
-      data: { name }
+      data: { 
+        ...(name !== undefined && { name }),
+        ...(isArchived !== undefined && { isArchived })
+      }
     });
     
     res.json(folder);

@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import multer from 'multer';
 import { authenticateJWT } from '../middlewares/auth.middleware';
-import { uploadFile, getFiles, deleteFile } from '../controllers/file.controller';
+import { uploadFile, getFiles, deleteFile, updateFile } from '../controllers/file.controller';
 
 const router = Router();
 
@@ -22,5 +22,7 @@ router.get('/', getFiles);
 router.post('/upload', upload.single('file'), uploadFile);
 // Route: DELETE /api/files/:id
 router.delete('/:id', deleteFile);
+// Route: PATCH /api/files/:id
+router.patch('/:id', updateFile);
 
 export default router;

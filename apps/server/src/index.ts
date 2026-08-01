@@ -13,6 +13,8 @@ import dmRoutes from './routes/dm.route';
 import aiRoutes from './routes/ai.route';
 import folderRoutes from './routes/folder.routes';
 import taskRoutes from './routes/task.routes';
+import cron from 'node-cron';
+import { prisma } from '@nexus/database';
 
 dotenv.config();
 
@@ -67,8 +69,6 @@ if (process.env.NODE_ENV !== 'test') {
   app.set('io', io);
 
   // Graceful shutdown handlers for fast and clean dev reloads
-  const { prisma } = require('@nexus/database');
-
   const shutdown = async () => {
     console.log('[Server] Graceful shutdown initiated...');
     server.close(() => {
@@ -81,4 +81,41 @@ if (process.env.NODE_ENV !== 'test') {
 
   process.on('SIGTERM', shutdown);
   process.on('SIGINT', shutdown);
+
+  // CRON Job: Delete trash older than 30 days (runs at midnight daily)
+  cron.schedule('0 0 * * *', async () => {
+    console.log('[Cron] Running daily trash cleanup for items older than 30 days...');
+    try {
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+      // Clean up files
+      const deletedFiles = await prisma.file.deleteMany({
+        where: {
+          isArchived: true,
+          updatedAt: { lte: thirtyDaysAgo }
+        }
+      });
+
+      // Clean up documents
+      const deletedDocs = await prisma.document.deleteMany({
+        where: {
+          isArchived: true,
+          updatedAt: { lte: thirtyDaysAgo }
+        }
+      });
+
+      // Clean up folders
+      const deletedFolders = await prisma.folder.deleteMany({
+        where: {
+          isArchived: true,
+          updatedAt: { lte: thirtyDaysAgo }
+        }
+      });
+
+      console.log(`[Cron] Cleanup complete. Deleted ${deletedFiles.count} files, ${deletedDocs.count} documents, ${deletedFolders.count} folders.`);
+    } catch (error) {
+      console.error('[Cron] Error during trash cleanup:', error);
+    }
+  });
 }

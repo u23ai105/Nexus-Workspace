@@ -37,6 +37,7 @@ interface NexusEditorProps {
   onBack?: () => void
   token: string
   serverUrl: string
+  onStartFollowMe?: () => void
 }
 
 // A single online user record extracted from the Yjs Awareness state map.
@@ -84,20 +85,7 @@ function useAwarenessUsers(awareness: Awareness): OnlineUser[] {
   return users
 }
 
-// ── Sub-component: WordCount ───────────────────────────────────────────────
 
-function WordCount({ editor }: { editor: ReturnType<typeof useEditor> }) {
-  if (!editor) return null
-  const chars = editor.storage.characterCount?.characters() ?? 0
-  const words = editor.storage.characterCount?.words() ?? 0
-  return (
-    <div className="editor-statusbar">
-      <span>{words} words</span>
-      <span>·</span>
-      <span>{chars} characters</span>
-    </div>
-  )
-}
 
 // ── Sub-component: OnlineBar ───────────────────────────────────────────────
 //
@@ -141,10 +129,44 @@ function OnlineBar({ users }: { users: OnlineUser[] }) {
 
 // ── Main Component: NexusEditor ────────────────────────────────────────────
 
-export function NexusEditor({ ydoc, awareness, user, documentTitle, readOnly = false, onRename, onBack, token, serverUrl }: NexusEditorProps) {
+export function NexusEditor({ ydoc, awareness, user, documentTitle, readOnly = false, onRename, onBack, token, serverUrl, onStartFollowMe }: NexusEditorProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
   
-  // ── Live user list from awareness ──────────────────────────────────────
+  // ── Custom Zoom ─────────────────────────────────────────────────────────
+  const [zoomLevel, setZoomLevel] = useState(1)
+
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container) return
+    const handleWheel = (e: WheelEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault()
+        setZoomLevel(z => Math.max(0.5, Math.min(3, z - e.deltaY * 0.005)))
+      }
+    }
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        if (e.key === '=' || e.key === '+' || e.key === '-') {
+          e.preventDefault()
+          setZoomLevel(z => Math.max(0.5, Math.min(3, z + (e.key === '-' ? -0.1 : 0.1))))
+        }
+        if (e.key === '0') {
+          e.preventDefault()
+          setZoomLevel(1)
+        }
+      }
+    }
+
+    container.addEventListener('wheel', handleWheel, { passive: false })
+    window.addEventListener('keydown', handleKeyDown, { passive: false })
+    
+    return () => {
+      container.removeEventListener('wheel', handleWheel)
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [])
   const onlineUsers = useAwarenessUsers(awareness)
 
   // ── Inject our identity into Yjs Awareness ──────────────────────────────
@@ -429,7 +451,11 @@ export function NexusEditor({ ydoc, awareness, user, documentTitle, readOnly = f
 
   return (
     <div 
-      ref={scrollRef}
+      ref={(node) => {
+        // Assign to both refs
+        scrollRef.current = node
+        containerRef.current = node
+      }}
       className={`nexus-editor-container bg-background h-full overflow-y-auto relative overflow-x-hidden ${presenterInfo && !localIsPresenting ? 'overflow-hidden' : ''}`}
     >
       {/* Sticky Header Group */}
@@ -512,6 +538,17 @@ export function NexusEditor({ ydoc, awareness, user, documentTitle, readOnly = f
               >
                 {localIsPresenting ? 'Stop Presenting' : 'Start Presenting'}
               </button>
+              {onStartFollowMe && (
+                <button
+                  onClick={onStartFollowMe}
+                  className="px-3 py-1.5 text-xs font-medium rounded-md transition-colors bg-purple-500/10 text-purple-500 border border-purple-500/20 hover:bg-purple-500/20 flex items-center space-x-1"
+                >
+                  <svg className="w-3.5 h-3.5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Start Follow Me
+                </button>
+              )}
             </>
           )}
 
@@ -535,22 +572,27 @@ export function NexusEditor({ ydoc, awareness, user, documentTitle, readOnly = f
           )}
         </div>
       </div>
+      
+      {/* ── Toolbar & OnlineBar (Sticky) ── */}
+      <div className="w-full bg-background/95 backdrop-blur-md border-b border-border/30 shadow-sm z-30">
+        <div className="max-w-5xl mx-auto px-4 py-2 flex flex-col gap-2">
+          {/* Live presence bar */}
+          <OnlineBar users={onlineUsers} />
+          {/* Formatting toolbar */}
+          <EditorToolbar editor={editor} />
+        </div>
+      </div>
       </div> {/* End Sticky Header Group */}
 
       <div className="relative z-10 max-w-5xl mx-auto pb-24 min-h-full flex flex-col">
-        {/* Live presence bar — shows online count + all connected authors */}
-      <OnlineBar users={onlineUsers} />
-
       <>
-        {/* Formatting toolbar */}
-        <EditorToolbar editor={editor} />
-
           {/* The ProseMirror / Tiptap editable surface */}
-          <div className="nexus-editor__content-wrapper w-full h-fit min-h-[70vh]">
+          <div 
+            className="nexus-editor__content-wrapper w-full h-fit min-h-[70vh] transition-all"
+            style={{ zoom: zoomLevel } as React.CSSProperties}
+          >
             <EditorContent editor={editor} className="nexus-editor__content" />
           </div>
-
-          <WordCount editor={editor} />
           
         <AIFloatingMenu editor={editor} token={token} serverUrl={serverUrl} />
       </>

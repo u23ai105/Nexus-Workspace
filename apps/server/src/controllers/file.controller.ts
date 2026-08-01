@@ -29,6 +29,7 @@ export const uploadFile = async (req: AuthRequest, res: Response) => {
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
     const workspaceId = req.body.workspaceId;
+    const folderId = req.body.folderId || null;
     if (!workspaceId) return res.status(400).json({ error: 'workspaceId is required' });
 
     if (!req.file) {
@@ -82,6 +83,7 @@ export const uploadFile = async (req: AuthRequest, res: Response) => {
         mimeType: file.mimetype,
         size: file.size,
         workspaceId,
+        folderId,
         uploaderId: userId,
       }
     });
@@ -100,10 +102,11 @@ export const getFiles = async (req: AuthRequest, res: Response) => {
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
     const workspaceId = req.query.workspaceId as string;
+    const isArchived = req.query.isArchived === 'true';
     if (!workspaceId) return res.status(400).json({ error: 'workspaceId is required' });
 
     const files = await prisma.file.findMany({
-      where: { workspaceId },
+      where: { workspaceId, isArchived },
       orderBy: { createdAt: 'desc' },
       include: {
         uploader: {
@@ -165,6 +168,37 @@ export const deleteFile = async (req: AuthRequest, res: Response) => {
     res.status(200).json({ message: 'File deleted successfully' });
   } catch (error) {
     console.error("Error deleting file:", error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// PATCH /files/:id
+export const updateFile = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    const { id } = req.params;
+    const { isArchived } = req.body;
+
+    const file = await prisma.file.findUnique({ where: { id } });
+    if (!file) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+
+    const role = await getUserRole(userId, file.workspaceId);
+    if (!role || role === 'VIEWER') {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    const updatedFile = await prisma.file.update({
+      where: { id },
+      data: { isArchived }
+    });
+
+    res.status(200).json({ file: updatedFile });
+  } catch (error) {
+    console.error("Error updating file:", error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };

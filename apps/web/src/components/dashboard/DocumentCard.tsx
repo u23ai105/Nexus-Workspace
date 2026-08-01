@@ -106,164 +106,177 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
   return (
     <div
       onClick={() => !isRenaming && onOpen(doc)}
-      className="premium-card group relative flex flex-col justify-between p-6 cursor-pointer min-h-[14rem]"
+      className="group relative flex flex-col overflow-hidden rounded-2xl border border-border/50 bg-card hover:border-primary/50 hover:shadow-xl transition-all duration-300 cursor-pointer h-[18rem]"
     >
-      {/* Top Section */}
-      <div>
-        <div className="flex items-start justify-between mb-3">
-          <div className="flex items-center space-x-3 flex-1 min-w-0 mr-2">
-            <div className={`w-8 h-8 rounded-md bg-muted flex items-center justify-center text-muted-foreground transition-colors duration-200 shrink-0 ${doc.type === 'CANVAS' ? 'group-hover:bg-purple-500 group-hover:text-white' : 'group-hover:bg-primary group-hover:text-primary-foreground'}`}>
-              {doc.type === 'CANVAS' ? (
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
-                </svg>
-              ) : (
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-              )}
-            </div>
+      {/* Thumbnail Preview Area */}
+      <div className={`relative h-[60%] w-full flex-shrink-0 flex items-center justify-center p-4 border-b border-border/30 ${
+        doc.type === 'CANVAS' 
+          ? 'bg-gradient-to-br from-purple-500/10 via-background to-purple-500/5' 
+          : 'bg-gradient-to-br from-blue-500/10 via-background to-blue-500/5'
+      }`}>
+        {/* Background Pattern */}
+        {doc.type === 'CANVAS' ? (
+          <div className="absolute inset-0 opacity-[0.15]" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, currentColor 1px, transparent 0)', backgroundSize: '16px 16px' }} />
+        ) : (
+          <div className="absolute inset-0 opacity-[0.08]" style={{ backgroundImage: 'linear-gradient(currentColor 1px, transparent 1px)', backgroundSize: '100% 24px', backgroundPositionY: '8px' }} />
+        )}
+        
+        {/* Central Icon */}
+        <div className={`relative z-10 w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg transform group-hover:scale-110 transition-transform duration-300 ${
+          doc.type === 'CANVAS' 
+            ? 'bg-gradient-to-tr from-purple-500 to-indigo-500 text-white shadow-purple-500/30' 
+            : 'bg-gradient-to-tr from-blue-500 to-cyan-500 text-white shadow-blue-500/30'
+        }`}>
+          {doc.type === 'CANVAS' ? (
+            <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+            </svg>
+          ) : (
+            <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+          )}
+        </div>
 
-            {isRenaming ? (
-              <form onSubmit={handleRenameSubmit} className="flex-1 min-w-0" onClick={(e) => e.stopPropagation()}>
-                <input
-                  type="text"
-                  value={titleInput}
-                  onChange={(e) => setTitleInput(e.target.value)}
-                  onBlur={() => setIsRenaming(false)}
-                  autoFocus
-                  className="w-full bg-background text-foreground text-sm font-medium px-2 py-1 rounded-sm border border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                />
-              </form>
-            ) : (
-              <h3 className="font-medium text-foreground truncate text-base">
-                {doc.title}
-              </h3>
-            )}
-          </div>
-
-          {/* Action Menu Trigger */}
-          {userRole !== 'VIEWER' && (
-            <div className="relative" ref={menuRef} onClick={(e) => e.stopPropagation()}>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIsMenuOpen(!isMenuOpen);
-                }}
-                className="p-1.5 text-muted-foreground hover:bg-muted/80 hover:text-foreground rounded-md transition-colors"
-              >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-                </svg>
-              </button>
+        {/* Action Menu Trigger (Top Right overlay) */}
+        {userRole !== 'VIEWER' && (
+          <div className="absolute top-2 right-2 z-20" ref={menuRef} onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsMenuOpen(!isMenuOpen);
+              }}
+              className="p-1.5 bg-background/50 backdrop-blur-md border border-border/50 text-foreground hover:bg-background/80 hover:text-primary rounded-lg transition-colors shadow-sm opacity-0 group-hover:opacity-100 focus:opacity-100"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+              </svg>
+            </button>
 
             {/* Dropdown Menu */}
             {isMenuOpen && (
-              <div className="absolute right-0 mt-1 w-44 bg-popover border border-border rounded-md shadow-lg py-1 z-50 divide-y divide-border">
-                <div className="py-1">
-                    <button
-                      onClick={() => {
-                        setIsMenuOpen(false);
-                        setIsRenaming(true);
-                      }}
-                      className="w-full px-3 py-1.5 text-left text-sm text-popover-foreground hover:bg-muted flex items-center space-x-2"
-                    >
-                      <span>✏️</span>
-                      <span>Rename</span>
-                    </button>
-                    <button
-                      onClick={() => {
-                        setIsMenuOpen(false);
-                        onDuplicate(doc);
-                      }}
-                      className="w-full px-3 py-1.5 text-left text-sm text-popover-foreground hover:bg-muted flex items-center space-x-2"
-                    >
-                      <span>📋</span>
-                      <span>Duplicate</span>
-                    </button>
-                  </div>
+              <div className="absolute right-0 mt-2 w-48 bg-popover/95 backdrop-blur-xl border border-border rounded-xl shadow-2xl py-1 z-50 divide-y divide-border/50">
+                <div className="py-1 px-1">
+                  <button
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      setIsRenaming(true);
+                    }}
+                    className="w-full px-3 py-2 text-left text-sm text-popover-foreground hover:bg-muted/80 hover:text-primary rounded-md flex items-center space-x-3 transition-colors"
+                  >
+                    <span>✏️</span>
+                    <span className="font-medium">Rename</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      onDuplicate(doc);
+                    }}
+                    className="w-full px-3 py-2 text-left text-sm text-popover-foreground hover:bg-muted/80 hover:text-primary rounded-md flex items-center space-x-3 transition-colors"
+                  >
+                    <span>📋</span>
+                    <span className="font-medium">Duplicate</span>
+                  </button>
+                </div>
 
-                  <div className="py-1">
-                    <button
-                      onClick={handleExportMarkdown}
-                      className="w-full px-3 py-1.5 text-left text-sm text-popover-foreground hover:bg-muted flex items-center space-x-2"
-                    >
-                      <span>📄</span>
-                      <span>Export as .md</span>
-                    </button>
-                    <button
-                      onClick={handleExportHtml}
-                      className="w-full px-3 py-1.5 text-left text-sm text-popover-foreground hover:bg-muted flex items-center space-x-2"
-                    >
-                      <span>🌐</span>
-                      <span>Export as HTML</span>
-                    </button>
-                  </div>
+                <div className="py-1 px-1">
+                  <button
+                    onClick={handleExportMarkdown}
+                    className="w-full px-3 py-2 text-left text-sm text-popover-foreground hover:bg-muted/80 hover:text-primary rounded-md flex items-center space-x-3 transition-colors"
+                  >
+                    <span>📄</span>
+                    <span className="font-medium">Export as .md</span>
+                  </button>
+                  <button
+                    onClick={handleExportHtml}
+                    className="w-full px-3 py-2 text-left text-sm text-popover-foreground hover:bg-muted/80 hover:text-primary rounded-md flex items-center space-x-3 transition-colors"
+                  >
+                    <span>🌐</span>
+                    <span className="font-medium">Export as HTML</span>
+                  </button>
+                </div>
 
-                  <div className="py-1">
-                    {doc.isArchived ? (
-                      <>
-                        <button
-                          onClick={() => {
-                            setIsMenuOpen(false);
-                            onArchiveToggle(doc.id, false);
-                          }}
-                          className="w-full px-3 py-1.5 text-left text-sm text-primary hover:bg-primary/10 flex items-center space-x-2"
-                        >
-                          <span>♻️</span>
-                          <span>Restore</span>
-                        </button>
-                        
-                        {(userRole === 'OWNER' || userRole === 'ADMIN') && (
-                          <button
-                            onClick={() => {
-                              setIsMenuOpen(false);
-                              onDeletePermanent(doc.id);
-                            }}
-                            className="w-full px-3 py-1.5 text-left text-sm text-destructive hover:bg-destructive/10 flex items-center space-x-2"
-                          >
-                            <span>🗑️</span>
-                            <span>Delete Forever</span>
-                          </button>
-                        )}
-                      </>
-                    ) : (
+                <div className="py-1 px-1">
+                  {doc.isArchived ? (
+                    <>
                       <button
                         onClick={() => {
                           setIsMenuOpen(false);
-                          onArchiveToggle(doc.id, true);
+                          onArchiveToggle(doc.id, false);
                         }}
-                        className="w-full px-3 py-1.5 text-left text-sm text-destructive hover:bg-destructive/10 flex items-center space-x-2"
+                        className="w-full px-3 py-2 text-left text-sm text-emerald-500 hover:bg-emerald-500/10 rounded-md flex items-center space-x-3 transition-colors font-medium"
                       >
-                        <span>🗑️</span>
-                        <span>Move to Trash</span>
+                        <span>♻️</span>
+                        <span>Restore</span>
                       </button>
-                    )}
-                  </div>
+                      
+                      {(userRole === 'OWNER' || userRole === 'ADMIN') && (
+                        <button
+                          onClick={() => {
+                            setIsMenuOpen(false);
+                            onDeletePermanent(doc.id);
+                          }}
+                          className="w-full px-3 py-2 text-left text-sm text-destructive hover:bg-destructive/10 rounded-md flex items-center space-x-3 transition-colors font-medium"
+                        >
+                          <span>🗑️</span>
+                          <span>Delete Forever</span>
+                        </button>
+                      )}
+                    </>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        setIsMenuOpen(false);
+                        onArchiveToggle(doc.id, true);
+                      }}
+                      className="w-full px-3 py-2 text-left text-sm text-destructive hover:bg-destructive/10 rounded-md flex items-center space-x-3 transition-colors font-medium"
+                    >
+                      <span>🗑️</span>
+                      <span>Move to Trash</span>
+                    </button>
+                  )}
                 </div>
-            )}
-            </div>
+              </div>
             )}
           </div>
-
-        {/* Content Snippet Preview */}
-        <p className="text-sm text-muted-foreground line-clamp-3 leading-relaxed mb-4 min-h-[4rem]">
-          {doc.textContent ? doc.textContent : 'No content written yet. Click to start typing...'}
-        </p>
+        )}
       </div>
 
-      {/* Footer Info */}
-      <div className="flex items-center justify-between pt-3 border-t border-border text-xs text-muted-foreground font-medium">
-        <span className="flex items-center space-x-1.5">
-          <span className="w-1.5 h-1.5 rounded-full bg-primary inline-block" />
-          <span>{formatDate(doc.updatedAt)}</span>
-        </span>
-
-        {doc.creator && (
-          <span className="bg-muted px-2 py-0.5 rounded text-muted-foreground truncate max-w-[100px]">
-            {doc.creator.name || doc.creator.email.split('@')[0]}
+      {/* Metadata Footer Area */}
+      <div className="flex flex-col justify-between p-4 flex-1 bg-card">
+        <div className="mb-2">
+          {isRenaming ? (
+            <form onSubmit={handleRenameSubmit} className="w-full" onClick={(e) => e.stopPropagation()}>
+              <input
+                type="text"
+                value={titleInput}
+                onChange={(e) => setTitleInput(e.target.value)}
+                onBlur={() => setIsRenaming(false)}
+                autoFocus
+                className="w-full bg-muted/50 text-foreground text-sm font-medium px-2 py-1.5 rounded-md border border-primary/50 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 transition-all shadow-inner"
+              />
+            </form>
+          ) : (
+            <h3 className="font-semibold text-foreground truncate text-[15px] tracking-tight group-hover:text-primary transition-colors" title={doc.title}>
+              {doc.title}
+            </h3>
+          )}
+          <p className="text-xs text-muted-foreground/80 mt-1.5 flex items-center gap-1.5 font-medium">
+            <span className={`w-2 h-2 rounded-full shadow-sm ${doc.type === 'CANVAS' ? 'bg-purple-500 shadow-purple-500/50' : 'bg-blue-500 shadow-blue-500/50'}`} />
+            {doc.type === 'CANVAS' ? 'Canvas Board' : 'Text Document'}
+          </p>
+        </div>
+        
+        <div className="flex items-center justify-between text-[11px] text-muted-foreground/70 font-medium mt-auto">
+          <span className="flex items-center space-x-1.5">
+            <span>Edited {formatDate(doc.updatedAt)}</span>
           </span>
-        )}
+          {doc.creator && (
+            <span className="bg-muted/80 px-2.5 py-1 rounded-md text-foreground/70 truncate max-w-[80px]" title={doc.creator.name || doc.creator.email}>
+              {doc.creator.name || doc.creator.email.split('@')[0]}
+            </span>
+          )}
+        </div>
       </div>
     </div>
   );

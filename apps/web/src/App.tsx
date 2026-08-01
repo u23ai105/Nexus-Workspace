@@ -387,6 +387,7 @@ export default function App() {
               onSelectDocument={(doc) => setSelectedDoc(doc)}
               onRoleChange={(role) => setUserRole(role)}
               currentUser={user}
+              globalSocket={globalSocket}
               onOpenDM={(user: any) => {
                 setActiveWorkspaceId(null);
                 setSelectedDoc(null);

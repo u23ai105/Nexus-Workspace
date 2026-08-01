@@ -308,6 +308,15 @@ function CollaborativeTextEditor({
         onBack={onBack}
         token={token}
         serverUrl={serverUrl}
+        onStartFollowMe={() => {
+          if (globalSocket && workspaceId && userRole !== 'VIEWER') {
+            globalSocket.emit('presentation:start', {
+              workspaceId,
+              documentId,
+              role: userRole
+            });
+          }
+        }}
       />
     </div>
   )

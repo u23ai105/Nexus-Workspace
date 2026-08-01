@@ -104,7 +104,13 @@
 
   /* Podium-style Glass Pill Toolbar */
   .editor-toolbar {
-    @apply flex items-center gap-1 p-1.5 border border-border/50 bg-background/70 backdrop-blur-xl rounded-full shadow-sm sticky top-6 z-10 mx-auto w-fit transition-all;
+    @apply flex items-center gap-1 p-1.5 border border-border/50 bg-background/70 backdrop-blur-xl rounded-full shadow-sm mx-auto w-max max-w-full overflow-x-auto transition-all;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  
+  .editor-toolbar::-webkit-scrollbar {
+    display: none;
   }
 
   .toolbar-btn {

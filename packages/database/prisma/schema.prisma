@@ -103,11 +103,17 @@ model File {
   url         String
   mimeType    String
   size        Int
+  isArchived  Boolean   @default(false)
   workspaceId String
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  folderId    String?
+  folder      Folder?   @relation(fields: [folderId], references: [id], onDelete: SetNull)
   uploaderId  String
   uploader    User      @relation(fields: [uploaderId], references: [id])
   createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @default(now()) @updatedAt
+
+  @@index([workspaceId, isArchived])
 }
 
 model Message {
@@ -139,16 +145,18 @@ model DirectMessage {
 model Folder {
   id          String     @id @default(uuid())
   name        String
+  isArchived  Boolean    @default(false)
   workspaceId String
   workspace   Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   parentId    String?
   parent      Folder?    @relation("FolderToFolder", fields: [parentId], references: [id], onDelete: Cascade)
   children    Folder[]   @relation("FolderToFolder")
   documents   Document[]
+  files       File[]
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
 
-  @@index([workspaceId])
+  @@index([workspaceId, isArchived])
   @@index([parentId])
 }
 

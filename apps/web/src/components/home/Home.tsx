@@ -37,7 +37,7 @@ export function Home({ workspaces, user, onSelectWorkspace, onCreateWorkspace, o
   const borderTints = ['border-tint-orange', 'border-tint-blue', 'border-tint-red', 'border-tint-green']
 
   return (
-    <div className="min-h-screen w-full bg-grid-pattern bg-background text-foreground overflow-y-auto">
+    <div className="h-full w-full bg-grid-pattern bg-background text-foreground overflow-y-auto">
       <div className="relative z-10 max-w-6xl mx-auto px-8 py-16">
         <header className="mb-16">
           <h1 className="text-4xl font-semibold tracking-tight mb-3">Welcome back, {user.name}</h1>

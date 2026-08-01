@@ -3,7 +3,7 @@ import useSWR from 'swr';
 import { DocumentCard, type DocumentItem } from './DocumentCard';
 import { ManageTeamModal } from './ManageTeamModal';
 import { WorkspaceChat } from './WorkspaceChat';
-import { FolderSidebar } from './FolderSidebar';
+import { FolderCard } from './FolderCard';
 import { TasksSidebar } from './TasksSidebar';
 import { WorkspaceAIChat } from './WorkspaceAIChat';
 
@@ -24,6 +24,7 @@ interface DocumentDashboardProps {
   onSelectDocument: (doc: DocumentItem) => void;
   onRoleChange?: (role: string) => void;
   currentUser: any;
+  globalSocket?: any;
   onOpenDM?: (user: any) => void;
 }
 
@@ -34,6 +35,7 @@ export const DocumentDashboard: React.FC<DocumentDashboardProps> = ({
   onSelectDocument,
   onRoleChange,
   currentUser,
+  globalSocket,
   onOpenDM
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -49,7 +51,6 @@ export const DocumentDashboard: React.FC<DocumentDashboardProps> = ({
   
   // Sidebar states
   const [isMainSidebarOpen, setIsMainSidebarOpen] = useState(true);
-  const [isFolderSidebarOpen, setIsFolderSidebarOpen] = useState(true);
 
   const fetcher = async ([url, jwt]: [string, string]) => {
     const res = await fetch(url, { headers: { Authorization: `Bearer ${jwt}` } });
@@ -60,7 +61,7 @@ export const DocumentDashboard: React.FC<DocumentDashboardProps> = ({
 
   const isArchived = activeTab === 'trash';
   const docsKey = (activeTab === 'all' || activeTab === 'trash') ? [`${serverUrl}/api/documents?workspaceId=${workspaceId}&isArchived=${isArchived}`, token] : null;
-  const filesKey = activeTab === 'drive' ? [`${serverUrl}/api/files?workspaceId=${workspaceId}`, token] : null;
+  const filesKey = (activeTab === 'all' || activeTab === 'trash') ? [`${serverUrl}/api/files?workspaceId=${workspaceId}&isArchived=${isArchived}`, token] : null;
 
   const { data: docsData, error: docsError, isLoading: docsLoading, mutate: mutateDocs } = useSWR(docsKey, fetcher);
   const { data: filesData, error: filesError, isLoading: filesLoading, mutate: mutateFiles } = useSWR(filesKey, fetcher);
@@ -231,6 +232,9 @@ export const DocumentDashboard: React.FC<DocumentDashboardProps> = ({
       const formData = new FormData();
       formData.append('file', file);
       formData.append('workspaceId', workspaceId);
+      if (currentFolderId) {
+        formData.append('folderId', currentFolderId);
+      }
 
       const res = await fetch(`${serverUrl}/api/files/upload`, {
         method: 'POST',
@@ -366,6 +370,55 @@ export const DocumentDashboard: React.FC<DocumentDashboardProps> = ({
                 </svg>
                 <span>{creating ? 'Creating...' : 'New Canvas Board'}</span>
               </button>
+
+              <button
+                onClick={() => {
+                  const name = prompt('Enter folder name:');
+                  if (name) handleCreateFolder(currentFolderId, name);
+                }}
+                disabled={creating}
+                className="w-full bg-amber-500 hover:bg-amber-600 text-white font-medium py-2 px-3 rounded-md shadow-sm flex items-center justify-center space-x-2 transition-all duration-200 active:scale-95 disabled:opacity-50 text-sm"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                </svg>
+                <span>{creating ? 'Creating...' : 'New Folder'}</span>
+              </button>
+
+              <label
+                className="cursor-pointer w-full bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-3 rounded-md shadow-sm flex items-center justify-center space-x-2 transition-all duration-200 active:scale-95 disabled:opacity-50 text-sm"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                </svg>
+                <span>{uploadingFile ? 'Uploading...' : 'Upload File'}</span>
+                <input
+                  type="file"
+                  className="hidden"
+                  onChange={handleFileUpload}
+                  disabled={uploadingFile}
+                />
+              </label>
+
+              {userRole !== 'VIEWER' && (
+                <button
+                  onClick={() => {
+                    if (globalSocket) {
+                      globalSocket.emit('presentation:start', {
+                        workspaceId,
+                        documentId: null, // Broadcasts dashboard level
+                        role: userRole
+                      });
+                    }
+                  }}
+                  className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-medium py-2 px-3 rounded-md shadow-sm flex items-center justify-center space-x-2 transition-all duration-200 active:scale-95 text-sm mt-2"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span>Start Follow Me</span>
+                </button>
+              )}
             </div>
           )}
 
@@ -402,21 +455,7 @@ export const DocumentDashboard: React.FC<DocumentDashboardProps> = ({
                 <span>Trash</span>
               </span>
             </button>
-            <button
-              onClick={() => setActiveTab('drive')}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                activeTab === 'drive'
-                  ? 'bg-tint-blue/20 text-tint-blue'
-                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-              }`}
-            >
-              <span className="flex items-center space-x-3">
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                </svg>
-                <span>Workspace Drive</span>
-              </span>
-            </button>
+
 
             <button
               onClick={() => setIsAiOpen(!isAiOpen)}
@@ -478,21 +517,7 @@ export const DocumentDashboard: React.FC<DocumentDashboardProps> = ({
               </span>
             </button>
             
-            <button
-              onClick={() => setIsFolderSidebarOpen(!isFolderSidebarOpen)}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium transition-colors mt-2 ${
-                isFolderSidebarOpen
-                  ? 'bg-amber-500/20 text-amber-600'
-                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-              }`}
-            >
-              <span className="flex items-center space-x-3">
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-                </svg>
-                <span>Folders</span>
-              </span>
-            </button>
+
           </nav>
         </div>
 
@@ -513,17 +538,7 @@ export const DocumentDashboard: React.FC<DocumentDashboardProps> = ({
 
       {/* Main Container for Sidebar + Content */}
       <div className="flex-1 flex overflow-hidden">
-        {activeTab === 'all' && isFolderSidebarOpen && (
-          <FolderSidebar 
-            folders={folders}
-            currentFolderId={currentFolderId}
-            onSelectFolder={setCurrentFolderId}
-            onCreateFolder={handleCreateFolder}
-            onRenameFolder={handleRenameFolder}
-            onDeleteFolder={handleDeleteFolder}
-            userRole={userRole}
-          />
-        )}
+
 
         {/* Main Content Area */}
         <main className="flex-1 flex flex-col min-w-0 overflow-y-auto p-8 sm:p-10 lg:p-12 relative z-10">
@@ -562,7 +577,7 @@ export const DocumentDashboard: React.FC<DocumentDashboardProps> = ({
           </div>
         </div>
 
-        {/* Content Container */}
+                {/* Content Container */}
         <div className="max-w-6xl mx-auto w-full flex-1 flex flex-col">
           {/* Error Notification */}
           {error && (
@@ -579,83 +594,98 @@ export const DocumentDashboard: React.FC<DocumentDashboardProps> = ({
                 <p className="text-sm text-muted-foreground">Loading workspace documents...</p>
               </div>
             </div>
-          ) : activeTab === 'drive' ? (
-            /* Drive File Grid */
+          ) : (
             <div className="flex-1 flex flex-col">
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-lg font-medium">Files</h3>
-                {userRole !== 'VIEWER' && (
-                  <label htmlFor="upload-file-header" className="cursor-pointer bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium px-4 py-2 rounded-md transition-all shadow-sm shadow-orange-500/30 inline-flex items-center space-x-2">
-                    <svg className="w-4 h-4 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                    </svg>
-                    <span>{uploadingFile ? 'Uploading...' : 'Upload File'}</span>
-                    <input
-                      id="upload-file-header"
-                      type="file"
-                      className="hidden"
-                      onChange={handleFileUpload}
-                      disabled={uploadingFile}
-                    />
-                  </label>
-                )}
-              </div>
+              {/* Breadcrumbs */}
+              {activeTab === 'all' && (
+                <div className="flex items-center space-x-2 text-sm text-muted-foreground mb-6 bg-muted/30 p-2 rounded-md border border-border/50">
+                  <button onClick={() => setCurrentFolderId(null)} className="hover:text-foreground hover:underline transition-colors font-medium">My Drive</button>
+                  {(() => {
+                    const breadcrumbFolders = [];
+                    let curr = currentFolderId;
+                    while (curr) {
+                      const f = folders.find((f: any) => f.id === curr);
+                      if (f) {
+                        breadcrumbFolders.unshift(f);
+                        curr = f.parentId;
+                      } else {
+                        break;
+                      }
+                    }
+                    return breadcrumbFolders.map((f) => (
+                      <React.Fragment key={f.id}>
+                        <span className="opacity-50">/</span>
+                        <button onClick={() => setCurrentFolderId(f.id)} className="hover:text-foreground hover:underline transition-colors truncate max-w-[150px] font-medium">{f.name}</button>
+                      </React.Fragment>
+                    ));
+                  })()}
+                </div>
+              )}
 
-              {files.length === 0 ? (
-                <div className="flex-1 flex flex-col items-center justify-center text-center p-12 border border-dashed border-border/80 rounded-lg min-h-[300px]">
-                  <div className="w-12 h-12 rounded-full bg-background border border-border flex items-center justify-center mb-4 shadow-sm text-muted-foreground">
-                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+              {/* Grid */}
+              {folders.filter((f: any) => activeTab === 'all' ? f.parentId === currentFolderId : true).length === 0 &&
+               filteredDocs.length === 0 &&
+               files.filter((f: any) => activeTab === 'all' ? f.folderId === currentFolderId : true).length === 0 ? (
+                /* Empty State */
+                <div className="flex-1 flex flex-col items-center justify-center text-center p-16 min-h-[400px]">
+                  <div className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary mb-6">
+                    <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      {activeTab === 'all' ? (
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      ) : (
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      )}
                     </svg>
                   </div>
-                  <h3 className="text-lg font-medium text-foreground mb-2">Workspace Drive is empty</h3>
-                  
-                  {userRole !== 'VIEWER' ? (
-                    <>
-                      <p className="text-sm text-muted-foreground max-w-sm mb-6">No files uploaded yet. Upload images, PDFs, or other documents to share with the workspace.</p>
-                      <label htmlFor="upload-file-empty" className={`cursor-pointer bg-orange-500 hover:bg-orange-600 text-white font-semibold px-8 py-3 rounded-lg transition-all shadow-lg shadow-orange-500/30 hover:shadow-orange-500/40 active:scale-95 text-base inline-flex items-center space-x-2 ${uploadingFile ? 'opacity-50 pointer-events-none' : ''}`}>
-                        <span>{uploadingFile ? 'Uploading...' : 'Upload First File'}</span>
-                        <input
-                          id="upload-file-empty"
-                          type="file"
-                          className="hidden"
-                          onChange={handleFileUpload}
-                          disabled={uploadingFile}
-                        />
-                      </label>
-                    </>
-                  ) : (
-                    <p className="text-sm text-muted-foreground max-w-sm mb-6">No files uploaded yet. Only Editors, Admins, and Owners can upload files.</p>
-                  )}
+                  <h3 className="text-xl font-semibold text-foreground mb-3">
+                    {searchQuery ? 'No matching items found' : activeTab === 'all' ? 'This folder is empty' : 'Trash is empty'}
+                  </h3>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                  {/* Upload File Card directly in grid */}
-                  {userRole !== 'VIEWER' && (
-                    <label htmlFor="upload-file-card" className={`premium-card group cursor-pointer border-dashed border-2 border-border/60 hover:border-orange-500/50 hover:bg-orange-500/5 p-4 flex flex-col items-center justify-center transition-all min-h-[200px] ${uploadingFile ? 'opacity-50 pointer-events-none' : ''}`}>
-                      <div className="w-12 h-12 rounded-full bg-background border border-border group-hover:border-orange-500/30 flex items-center justify-center mb-3 shadow-sm text-muted-foreground group-hover:text-orange-500 transition-colors pointer-events-none">
-                        {uploadingFile ? (
-                          <div className="w-5 h-5 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
-                        ) : (
-                          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                          </svg>
-                        )}
-                      </div>
-                      <span className="font-medium text-muted-foreground group-hover:text-orange-500 transition-colors text-center pointer-events-none">
-                        {uploadingFile ? 'Uploading...' : 'Upload File'}
-                      </span>
-                      <input
-                        id="upload-file-card"
-                        type="file"
-                        className="hidden"
-                        onChange={handleFileUpload}
-                        disabled={uploadingFile}
-                      />
-                    </label>
-                  )}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                  {/* Folders */}
+                  {folders.filter((f: any) => {
+                    if (activeTab === 'all' && f.parentId !== currentFolderId) return false;
+                    const query = searchQuery.toLowerCase();
+                    return f.name.toLowerCase().includes(query);
+                  }).map((folder: any) => (
+                    <FolderCard
+                      key={folder.id}
+                      folder={folder}
+                      onOpen={setCurrentFolderId}
+                      onRename={handleRenameFolder}
+                      onArchiveToggle={(id, isArchived) => {
+                        fetch(serverUrl + "/api/workspaces/" + workspaceId + "/folders/" + id, {
+                           method: "PATCH",
+                           headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
+                           body: JSON.stringify({ isArchived })
+                        }).then(() => mutateFolders())
+                      }}
+                      onDeletePermanent={handleDeleteFolder}
+                      userRole={userRole}
+                    />
+                  ))}
 
-                  {files.map((file: any) => (
+                  {/* Documents */}
+                  {filteredDocs.map((doc: any) => (
+                    <DocumentCard
+                      key={doc.id}
+                      doc={doc}
+                      onOpen={onSelectDocument}
+                      onRename={handleRename}
+                      onDuplicate={handleDuplicate}
+                      onArchiveToggle={handleArchiveToggle}
+                      onDeletePermanent={handleDeletePermanent}
+                      userRole={userRole}
+                    />
+                  ))}
+
+                  {/* Files */}
+                  {files.filter((f: any) => {
+                    if (activeTab === 'all' && f.folderId !== currentFolderId) return false;
+                    const query = searchQuery.toLowerCase();
+                    return f.filename.toLowerCase().includes(query);
+                  }).map((file: any) => (
                     <div key={file.id} className="premium-card p-4 flex flex-col group relative overflow-hidden">
                       <div className="flex-1 flex items-center justify-center bg-muted/50 rounded-md mb-3 min-h-[120px] p-2 overflow-hidden">
                         {file.mimeType.startsWith('image/') ? (
@@ -673,18 +703,42 @@ export const DocumentDashboard: React.FC<DocumentDashboardProps> = ({
                           {file.uploader && <span>by {file.uploader.name}</span>}
                         </p>
                       </div>
-                      
                       <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex space-x-2">
                         <a href={file.url} target="_blank" rel="noopener noreferrer" className="p-1.5 bg-background/90 backdrop-blur-sm hover:bg-tint-blue/20 hover:text-tint-blue text-foreground border border-border/50 rounded-md shadow-sm block" title="Open file">
                           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                           </svg>
                         </a>
-                        {(userRole === 'OWNER' || userRole === 'ADMIN') && (
+                        {(userRole === 'OWNER' || userRole === 'ADMIN') && activeTab === 'trash' && (
                           <button onClick={(e) => handleDeleteFile(e, file.id)} className="p-1.5 bg-background/90 backdrop-blur-sm hover:bg-destructive/20 hover:text-destructive text-foreground border border-border/50 rounded-md shadow-sm block" title="Delete file">
                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                             </svg>
+                          </button>
+                        )}
+                        {/* Restore / Archive file for Trash */}
+                        {activeTab === 'trash' && (
+                          <button onClick={(e) => {
+                             e.preventDefault(); e.stopPropagation();
+                             fetch(serverUrl + "/api/files/" + file.id, {
+                               method: "PATCH",
+                               headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
+                               body: JSON.stringify({ isArchived: false })
+                             }).then(() => mutateFiles())
+                          }} className="p-1.5 bg-background/90 backdrop-blur-sm hover:bg-primary/20 hover:text-primary text-foreground border border-border/50 rounded-md shadow-sm block" title="Restore file">
+                            ♻️
+                          </button>
+                        )}
+                        {activeTab === 'all' && userRole !== 'VIEWER' && (
+                          <button onClick={(e) => {
+                             e.preventDefault(); e.stopPropagation();
+                             fetch(serverUrl + "/api/files/" + file.id, {
+                               method: "PATCH",
+                               headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
+                               body: JSON.stringify({ isArchived: true })
+                             }).then(() => mutateFiles())
+                          }} className="p-1.5 bg-background/90 backdrop-blur-sm hover:bg-destructive/20 hover:text-destructive text-foreground border border-border/50 rounded-md shadow-sm block" title="Move to trash">
+                            🗑️
                           </button>
                         )}
                       </div>
@@ -692,110 +746,6 @@ export const DocumentDashboard: React.FC<DocumentDashboardProps> = ({
                   ))}
                 </div>
               )}
-            </div>
-          ) : filteredDocs.length === 0 ? (
-            /* Empty State - Highly Visible */
-            <div className="flex-1 flex flex-col items-center justify-center text-center p-16 min-h-[400px]">
-              <div className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary mb-6">
-                <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  {activeTab === 'all' ? (
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  ) : (
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  )}
-                </svg>
-              </div>
-              <h3 className="text-xl font-semibold text-foreground mb-3">
-                {searchQuery ? 'No matching documents found' : activeTab === 'all' ? 'No documents yet' : 'Trash is empty'}
-              </h3>
-              <p className="text-sm text-muted-foreground max-w-md mb-8 leading-relaxed">
-                {searchQuery
-                  ? `No results for "${searchQuery}". Try a different keyword.`
-                  : activeTab === 'all'
-                  ? 'Create your first collaborative document to start writing and syncing with your team.'
-                  : 'Deleted documents will appear here for recovery.'}
-              </p>
-              {activeTab === 'all' && !searchQuery && userRole !== 'VIEWER' && (
-                <div className="flex flex-col sm:flex-row gap-4 items-center justify-center">
-                  <button
-                    onClick={(e) => handleCreateDocument('TEXT', e)}
-                    disabled={creating}
-                    className="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-6 py-3 rounded-lg transition-all shadow-lg shadow-orange-500/30 hover:shadow-orange-500/40 active:scale-95 text-base flex items-center space-x-2 disabled:opacity-50"
-                  >
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                    </svg>
-                    <span>{creating ? 'Creating...' : 'New Text Document'}</span>
-                  </button>
-                  <button
-                    onClick={(e) => handleCreateDocument('CANVAS', e)}
-                    disabled={creating}
-                    className="bg-purple-500 hover:bg-purple-600 text-white font-semibold px-6 py-3 rounded-lg transition-all shadow-lg shadow-purple-500/30 hover:shadow-purple-500/40 active:scale-95 text-base flex items-center space-x-2 disabled:opacity-50"
-                  >
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                    </svg>
-                    <span>{creating ? 'Creating...' : 'New Canvas Board'}</span>
-                  </button>
-                </div>
-              )}
-            </div>
-          ) : (
-            /* Document Grid */
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {/* High-visibility New Document Cards */}
-              {activeTab === 'all' && !searchQuery && userRole !== 'VIEWER' && (
-                <>
-                  <div
-                    onClick={(e) => handleCreateDocument('TEXT', e)}
-                    className={`premium-card group cursor-pointer border-2 border-primary/40 bg-primary/5 hover:border-primary hover:bg-primary/10 p-6 h-48 flex flex-col items-center justify-center transition-all shadow-sm ${creating ? 'opacity-50 pointer-events-none' : ''}`}
-                  >
-                    <div className="w-12 h-12 rounded-full bg-primary text-primary-foreground flex items-center justify-center mb-3 shadow-md transition-transform group-hover:scale-110">
-                      {creating ? (
-                        <div className="w-5 h-5 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
-                      ) : (
-                        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                        </svg>
-                      )}
-                    </div>
-                    <span className="font-semibold text-primary transition-colors text-lg mt-1">
-                      {creating ? 'Creating...' : 'New Text Doc'}
-                    </span>
-                  </div>
-
-                  <div
-                    onClick={(e) => handleCreateDocument('CANVAS', e)}
-                    className={`premium-card group cursor-pointer border-2 border-purple-500/40 bg-purple-500/5 hover:border-purple-500 hover:bg-purple-500/10 p-6 h-48 flex flex-col items-center justify-center transition-all shadow-sm ${creating ? 'opacity-50 pointer-events-none' : ''}`}
-                  >
-                    <div className="w-12 h-12 rounded-full bg-purple-500 text-white flex items-center justify-center mb-3 shadow-md transition-transform group-hover:scale-110">
-                      {creating ? (
-                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      ) : (
-                        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
-                        </svg>
-                      )}
-                    </div>
-                    <span className="font-semibold text-purple-500 transition-colors text-lg mt-1">
-                      {creating ? 'Creating...' : 'New Canvas'}
-                    </span>
-                  </div>
-                </>
-              )}
-
-              {filteredDocs.map((doc: any) => (
-                <DocumentCard
-                  key={doc.id}
-                  doc={doc}
-                  onOpen={onSelectDocument}
-                  onRename={handleRename}
-                  onDuplicate={handleDuplicate}
-                  onArchiveToggle={handleArchiveToggle}
-                  onDeletePermanent={handleDeletePermanent}
-                  userRole={userRole}
-                />
-              ))}
             </div>
           )}
         </div>
@@ -817,8 +767,8 @@ export const DocumentDashboard: React.FC<DocumentDashboardProps> = ({
 
       {/* Slide-out Tasks Sidebar */}
       {isTasksOpen && (
-        <div className="absolute inset-y-0 right-0 z-20 shadow-2xl h-full flex flex-col">
-          <div className="flex-1 bg-background overflow-hidden relative border-l border-border/50 rounded-l-xl flex flex-col">
+        <div className="relative z-20 h-full flex flex-col shrink-0">
+          <div className="flex-1 overflow-hidden relative flex flex-col">
             <button onClick={() => setIsTasksOpen(false)} className="absolute top-4 right-4 p-1 rounded-md text-muted-foreground hover:bg-muted z-30">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
             </button>
@@ -834,8 +784,8 @@ export const DocumentDashboard: React.FC<DocumentDashboardProps> = ({
 
       {/* Slide-out AI Sidebar */}
       {isAiOpen && (
-        <div className="absolute inset-y-0 right-0 z-20 shadow-2xl h-full flex flex-col">
-          <div className="flex-1 bg-background overflow-hidden relative border-l border-border/50 rounded-l-xl flex flex-col">
+        <div className="relative z-20 h-full flex flex-col shrink-0">
+          <div className="flex-1 overflow-hidden relative flex flex-col">
             <button onClick={() => setIsAiOpen(false)} className="absolute top-4 right-4 p-1 rounded-md text-muted-foreground hover:bg-muted z-30">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
             </button>
