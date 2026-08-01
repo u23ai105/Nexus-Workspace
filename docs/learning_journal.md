@@ -1271,3 +1271,43 @@ We implemented a powerful Slash-command and Mention autocomplete system within t
   - Executed a fetch call to the backend with the user's current JWT token.
   - Rendered a beautifully animated popover displaying the AI's streaming response, with one-click buttons to "Replace Selection" or "Insert Below" using the `editor.chain().focus().insertContent().run()` API.
   - Added a "✨ Ask AI Copilot" button in the main `Toolbar.tsx` that artificially selects the entire document and triggers the copilot menu, providing a quick way to analyze the entire page.
+
+## [Date: 2026-08-01] - Phase 7 & 8 Implementation
+
+### 1. Folders & Hierarchical Organization
+**Logic:**
+We implemented a hierarchical folder system for the workspace.
+- **Backend Schema:** Added a `Folder` model in `schema.prisma`. We used a self-referencing relation `parentId` pointing to `Folder.id` with `onDelete: Cascade` to support nested folders.
+- **API:** Created `/api/workspaces/:workspaceId/folders` endpoints.
+- **UI:** Added `FolderSidebar.tsx` using SWR to fetch folders. We recursively render nested folders and manage an `activeFolderId` state in the `DocumentDashboard.tsx` to filter documents.
+
+### 2. Unified Action Items (Task Aggregation)
+**Logic:**
+Instead of isolating tasks to individual documents (which makes it hard to see what needs to be done across a project), we aggregated tasks at the workspace level.
+- **Backend Schema:** Created an `ActionItem` model linked to `Workspace` and assigned to a `User`. Statuses include `TODO`, `IN_PROGRESS`, and `DONE`.
+- **API:** Created RESTful routes to manage these tasks.
+- **UI:** Developed a `TasksSidebar.tsx` that can be toggled via a button on the dashboard sidebar. 
+
+### 3. Global Workspace AI Assistant
+**Logic:**
+Previously, AI was isolated to a floating menu inside a document. We pivoted this to a Global Workspace AI assistant that acts as a central hub of knowledge for the entire workspace.
+- **Backend API:** Implemented a new `/api/ai/workspace-chat` endpoint. This endpoint receives the `prompt` and `workspaceId`. It fetches all the workspace documents and tasks using Prisma, aggregates their content into a single large context string, and feeds it into the `gemini-3.5-flash` model.
+- **UI:** Created a `WorkspaceAIChat.tsx` sidebar component using `react-markdown` to render the AI responses beautifully.
+
+### 4. Advanced "Follow Me" Presentation Mode
+**Logic:**
+We designed a workspace-wide presentation mode integrating synchronized scrolling, cross-document navigation, and real-time voice chat via WebRTC.
+- **Global Signaling (`socket.ts`):** We added a `workspace:join` event. When a user opens a workspace, they join a socket room named `workspace:{workspaceId}`. The server maintains a `Map` of active presentations mapping `workspaceId` to the presenter's details.
+- **Presentation State Lifecycle:** 
+  - `presentation:start`: Marks the start of a presentation broadcast.
+  - `presentation:switch_doc`: When the presenter switches documents, the backend broadcasts the new `documentId` to all followers, triggering their UI to navigate.
+  - `presentation:takeover`: Implemented Role-Based Access Control (RBAC) priority. If an `ADMIN` scrolls while an `EDITOR` is presenting, the `ADMIN`'s scroll event has higher priority (`rolePriority` map in `socket.ts`), and the `ADMIN` takes over the presentation.
+- **Scroll Synchronization (`CollaborativeEditor.tsx`):** We hooked into the `window` scroll events using a throttled `addEventListener`. When a scroll happens locally (and the user is authorized to present), it emits the `scrollY` position. Followers listen to `presentation:sync_scroll` and execute `window.scrollTo`.
+- **WebRTC Voice Chat (`PresentationBar.tsx`):** Integrated `PeerJS` to establish peer-to-peer audio connections. When a presentation is active, users automatically connect via PeerJS using a deterministic ID (`${workspaceId}-${userId}`). We intercept the `MediaStream` using `navigator.mediaDevices.getUserMedia({ audio: true })` and manage `<audio>` elements dynamically for incoming remote streams. Admin muting capability is signaled via Socket.io to force specific clients to disable their local audio track.
+
+### 5. UI Toggles for Sidebar Navigability
+**Logic:**
+To make the dashboard cleaner, we implemented toggles for the sidebars:
+- Added `isMainSidebarOpen` state to hide the main primary navigation sidebar using a hamburger/toggle button.
+- Added `isFolderSidebarOpen` state, controlled via a new "Folders" toggle option inside the main navigation list. This controls the rendering of the `FolderSidebar` component.
+

@@ -3,6 +3,9 @@ import useSWR from 'swr';
 import { DocumentCard, type DocumentItem } from './DocumentCard';
 import { ManageTeamModal } from './ManageTeamModal';
 import { WorkspaceChat } from './WorkspaceChat';
+import { FolderSidebar } from './FolderSidebar';
+import { TasksSidebar } from './TasksSidebar';
+import { WorkspaceAIChat } from './WorkspaceAIChat';
 
 export interface FileItem {
   id: string;
@@ -36,10 +39,17 @@ export const DocumentDashboard: React.FC<DocumentDashboardProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<'all' | 'trash' | 'drive'>('all');
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [isTasksOpen, setIsTasksOpen] = useState(false);
+  const [isAiOpen, setIsAiOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [uploadingFile, setUploadingFile] = useState(false);
   const [isTeamModalOpen, setIsTeamModalOpen] = useState(false);
   const [userRole, setUserRole] = useState<string>('OWNER');
+  const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
+  
+  // Sidebar states
+  const [isMainSidebarOpen, setIsMainSidebarOpen] = useState(true);
+  const [isFolderSidebarOpen, setIsFolderSidebarOpen] = useState(true);
 
   const fetcher = async ([url, jwt]: [string, string]) => {
     const res = await fetch(url, { headers: { Authorization: `Bearer ${jwt}` } });
@@ -54,9 +64,11 @@ export const DocumentDashboard: React.FC<DocumentDashboardProps> = ({
 
   const { data: docsData, error: docsError, isLoading: docsLoading, mutate: mutateDocs } = useSWR(docsKey, fetcher);
   const { data: filesData, error: filesError, isLoading: filesLoading, mutate: mutateFiles } = useSWR(filesKey, fetcher);
+  const { data: foldersData, mutate: mutateFolders } = useSWR([`${serverUrl}/api/workspaces/${workspaceId}/folders`, token], fetcher);
 
   const documents = docsData?.documents || [];
   const files = filesData?.files || [];
+  const folders = foldersData?.folders || [];
   const loading = docsLoading || filesLoading;
   const error = (docsError?.message || filesError?.message) || null;
 
@@ -104,7 +116,7 @@ export const DocumentDashboard: React.FC<DocumentDashboardProps> = ({
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ workspaceId, type }),
+        body: JSON.stringify({ workspaceId, type, folderId: currentFolderId }),
       });
       const data = await res.json();
       if (res.ok && data.document) {
@@ -241,7 +253,57 @@ export const DocumentDashboard: React.FC<DocumentDashboardProps> = ({
     }
   };
 
+  const handleCreateFolder = async (parentId: string | null, name: string) => {
+    try {
+      const res = await fetch(`${serverUrl}/api/workspaces/${workspaceId}/folders`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ name, parentId })
+      });
+      if (res.ok) mutateFolders();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleRenameFolder = async (id: string, name: string) => {
+    try {
+      const res = await fetch(`${serverUrl}/api/workspaces/${workspaceId}/folders/${id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ name })
+      });
+      if (res.ok) mutateFolders();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleDeleteFolder = async (id: string) => {
+    try {
+      const res = await fetch(`${serverUrl}/api/workspaces/${workspaceId}/folders/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        if (currentFolderId === id) setCurrentFolderId(null);
+        mutateFolders();
+        mutateDocs();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const filteredDocs = documents.filter((doc: any) => {
+    if (activeTab === 'all' && doc.folderId !== currentFolderId) return false;
+
     const query = searchQuery.toLowerCase();
     return (
       doc.title.toLowerCase().includes(query) ||
@@ -251,9 +313,35 @@ export const DocumentDashboard: React.FC<DocumentDashboardProps> = ({
 
   return (
     <div className="flex h-full bg-grid-pattern bg-background text-foreground overflow-hidden font-sans relative">
+      {/* Main Sidebar Toggle (when hidden) */}
+      {!isMainSidebarOpen && (
+        <button
+          onClick={() => setIsMainSidebarOpen(true)}
+          className="absolute top-4 left-4 z-20 p-2 bg-card/80 backdrop-blur-md border border-border rounded-md shadow-sm hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+          title="Open Sidebar"
+        >
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </button>
+      )}
+
       {/* Minimal Sidebar */}
-      <aside className="w-64 bg-card/40 backdrop-blur-md border-r border-border flex flex-col justify-between p-4 shrink-0 relative z-10">
-        <div>
+      {isMainSidebarOpen && (
+        <aside className="w-64 bg-card/40 backdrop-blur-md border-r border-border flex flex-col justify-between p-4 shrink-0 relative z-10 transition-all duration-300">
+          <div>
+            <div className="flex justify-between items-center mb-6">
+              <span className="font-semibold text-sm tracking-tight text-foreground/80">Navigation</span>
+              <button
+                onClick={() => setIsMainSidebarOpen(false)}
+                className="p-1 text-muted-foreground hover:text-foreground rounded transition-colors"
+                title="Hide Sidebar"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+                </svg>
+              </button>
+            </div>
           {/* New Document Action - hidden for VIEWERs */}
           {userRole !== 'VIEWER' && (
             <div className="flex flex-col space-y-2 mb-6">
@@ -331,6 +419,22 @@ export const DocumentDashboard: React.FC<DocumentDashboardProps> = ({
             </button>
 
             <button
+              onClick={() => setIsAiOpen(!isAiOpen)}
+              className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                isAiOpen
+                  ? 'bg-purple-500/20 text-purple-600'
+                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+              }`}
+            >
+              <span className="flex items-center space-x-3">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                <span>Workspace AI</span>
+              </span>
+            </button>
+
+            <button
               onClick={() => setIsChatOpen(!isChatOpen)}
               className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                 isChatOpen
@@ -347,6 +451,22 @@ export const DocumentDashboard: React.FC<DocumentDashboardProps> = ({
             </button>
 
             <button
+              onClick={() => setIsTasksOpen(!isTasksOpen)}
+              className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                isTasksOpen
+                  ? 'bg-primary/20 text-primary'
+                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+              }`}
+            >
+              <span className="flex items-center space-x-3">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                </svg>
+                <span>Action Items</span>
+              </span>
+            </button>
+
+            <button
               onClick={() => setIsTeamModalOpen(true)}
               className="w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium transition-colors text-muted-foreground hover:bg-muted hover:text-foreground mt-4"
             >
@@ -355,6 +475,22 @@ export const DocumentDashboard: React.FC<DocumentDashboardProps> = ({
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                 </svg>
                 <span>Manage Team</span>
+              </span>
+            </button>
+            
+            <button
+              onClick={() => setIsFolderSidebarOpen(!isFolderSidebarOpen)}
+              className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium transition-colors mt-2 ${
+                isFolderSidebarOpen
+                  ? 'bg-amber-500/20 text-amber-600'
+                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+              }`}
+            >
+              <span className="flex items-center space-x-3">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                </svg>
+                <span>Folders</span>
               </span>
             </button>
           </nav>
@@ -373,9 +509,24 @@ export const DocumentDashboard: React.FC<DocumentDashboardProps> = ({
           </p>
         </div>
       </aside>
+      )}
 
-      {/* Main Content Area */}
-      <main className="flex-1 flex flex-col min-w-0 overflow-y-auto p-8 sm:p-10 lg:p-12 relative z-10">
+      {/* Main Container for Sidebar + Content */}
+      <div className="flex-1 flex overflow-hidden">
+        {activeTab === 'all' && isFolderSidebarOpen && (
+          <FolderSidebar 
+            folders={folders}
+            currentFolderId={currentFolderId}
+            onSelectFolder={setCurrentFolderId}
+            onCreateFolder={handleCreateFolder}
+            onRenameFolder={handleRenameFolder}
+            onDeleteFolder={handleDeleteFolder}
+            userRole={userRole}
+          />
+        )}
+
+        {/* Main Content Area */}
+        <main className="flex-1 flex flex-col min-w-0 overflow-y-auto p-8 sm:p-10 lg:p-12 relative z-10">
         {/* Top Search and Title Bar */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 mb-10 max-w-6xl mx-auto w-full">
           <div>
@@ -649,6 +800,7 @@ export const DocumentDashboard: React.FC<DocumentDashboardProps> = ({
           )}
         </div>
       </main>
+      </div>
 
       {/* Slide-out Workspace Chat */}
       {isChatOpen && (
@@ -661,6 +813,39 @@ export const DocumentDashboard: React.FC<DocumentDashboardProps> = ({
           onOpenDocument={onSelectDocument}
           onOpenDM={onOpenDM}
         />
+      )}
+
+      {/* Slide-out Tasks Sidebar */}
+      {isTasksOpen && (
+        <div className="absolute inset-y-0 right-0 z-20 shadow-2xl h-full flex flex-col">
+          <div className="flex-1 bg-background overflow-hidden relative border-l border-border/50 rounded-l-xl flex flex-col">
+            <button onClick={() => setIsTasksOpen(false)} className="absolute top-4 right-4 p-1 rounded-md text-muted-foreground hover:bg-muted z-30">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+            <TasksSidebar
+              workspaceId={workspaceId}
+              token={token}
+              serverUrl={serverUrl}
+              userRole={userRole}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Slide-out AI Sidebar */}
+      {isAiOpen && (
+        <div className="absolute inset-y-0 right-0 z-20 shadow-2xl h-full flex flex-col">
+          <div className="flex-1 bg-background overflow-hidden relative border-l border-border/50 rounded-l-xl flex flex-col">
+            <button onClick={() => setIsAiOpen(false)} className="absolute top-4 right-4 p-1 rounded-md text-muted-foreground hover:bg-muted z-30">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+            <WorkspaceAIChat
+              workspaceId={workspaceId}
+              token={token}
+              serverUrl={serverUrl}
+            />
+          </div>
+        </div>
       )}
       
       {isTeamModalOpen && (

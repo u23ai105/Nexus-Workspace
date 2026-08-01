@@ -9,12 +9,18 @@ import Highlight from '@tiptap/extension-highlight'
 import Placeholder from '@tiptap/extension-placeholder'
 import Image from '@tiptap/extension-image'
 import CharacterCount from '@tiptap/extension-character-count'
+import Youtube from '@tiptap/extension-youtube'
+import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight'
+import { all, createLowlight } from 'lowlight'
 import * as Y from 'yjs'
 import { Awareness, encodeAwarenessUpdate } from 'y-protocols/awareness'
 import { EditorToolbar } from './Toolbar'
 import { AuthorHighlight } from './AuthorHighlight'
 import { PollExtension } from './pollExtension'
+import { TwitterExtension } from './twitterExtension'
+import { KanbanExtension } from './kanbanExtension'
 import { PresentationBanner } from './PresentationBanner'
+import { ExportMenu } from './ExportMenu'
 import { AIFloatingMenu } from './AIFloatingMenu'
 // Dedicated CSS for remote-user carets, name labels, and authorship highlights
 import './collaboration-cursors.css'
@@ -173,6 +179,13 @@ export function NexusEditor({ ydoc, awareness, user, documentTitle, readOnly = f
         // Disable StarterKit's built-in history plugin —
         // the Collaboration extension (Yjs) handles undo/redo via its own CRDT.
         undoRedo: false,
+        codeBlock: false,
+      }),
+      CodeBlockLowlight.configure({
+        lowlight: createLowlight(all),
+        HTMLAttributes: {
+          class: 'rounded-md bg-muted p-4 font-mono text-sm shadow-inner overflow-x-auto my-4',
+        },
       }),
 
       // ── Text sync via Yjs ───────────────────────────────────────────────
@@ -215,6 +228,14 @@ export function NexusEditor({ ydoc, awareness, user, documentTitle, readOnly = f
           class: 'rounded-lg max-w-full my-6 border border-border shadow-sm',
         },
       }),
+      Youtube.configure({
+        inline: false,
+        HTMLAttributes: {
+          class: 'rounded-lg max-w-full my-6 shadow-sm aspect-video',
+        },
+      }),
+      TwitterExtension,
+      KanbanExtension,
       PollExtension,
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -476,19 +497,22 @@ export function NexusEditor({ ydoc, awareness, user, documentTitle, readOnly = f
 
         <div className="flex items-center space-x-3 shrink-0">
           {!readOnly && (
-            <button
-              onClick={togglePresentation}
-              disabled={!!presenterInfo && !localIsPresenting}
-              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-                localIsPresenting
-                  ? 'bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500/20'
-                  : presenterInfo
-                  ? 'bg-muted text-muted-foreground opacity-50 cursor-not-allowed'
-                  : 'bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20'
-              }`}
-            >
-              {localIsPresenting ? 'Stop Presenting' : 'Start Presenting'}
-            </button>
+            <>
+              <ExportMenu editor={editor} documentTitle={documentTitle} />
+              <button
+                onClick={togglePresentation}
+                disabled={!!presenterInfo && !localIsPresenting}
+                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                  localIsPresenting
+                    ? 'bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500/20'
+                    : presenterInfo
+                    ? 'bg-muted text-muted-foreground opacity-50 cursor-not-allowed'
+                    : 'bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20'
+                }`}
+              >
+                {localIsPresenting ? 'Stop Presenting' : 'Start Presenting'}
+              </button>
+            </>
           )}
 
           {isUploading && (

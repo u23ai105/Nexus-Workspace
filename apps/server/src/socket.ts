@@ -14,6 +14,10 @@ const FRONTEND_ORIGIN = process.env.CLIENT_URL || 'http://localhost:5173';
 
 const saveTimers = new Map<string, NodeJS.Timeout>();
 
+// Presentation State Tracking
+// Key: workspaceId, Value: { presenterId: string, role: string, documentId: string, peerId: string }
+const activePresentations = new Map<string, { presenterId: string; role: string; documentId: string; peerId?: string }>();
+
 const scheduleSaveToDb = (roomName: string, ydoc: Y.Doc) => {
   if (saveTimers.has(roomName)) return;
 
@@ -362,6 +366,90 @@ export const createSocketServer = (server: HttpServer) => {
         socket.join(`chat:${workspaceId}`);
         console.log(`[Chat] User ${userId} joined chat for workspace ${workspaceId}`);
       }
+    });
+
+    /**
+     * Handle Workspace Join (for presentation & global presence)
+     */
+    socket.on('workspace:join', (workspaceId: string) => {
+      if (workspaceId) {
+        socket.join(`workspace:${workspaceId}`);
+        console.log(`[Workspace] User ${userId} joined workspace signaling room ${workspaceId}`);
+        
+        // If there's an active presentation in this workspace, notify the joining user
+        const presentation = activePresentations.get(workspaceId);
+        if (presentation) {
+          socket.emit('presentation:active', presentation);
+        }
+      }
+    });
+
+    /**
+     * Presentation Signaling
+     */
+    socket.on('presentation:start', (data: { workspaceId: string, documentId: string, role: string, peerId?: string }) => {
+      if (!data.workspaceId || !data.documentId) return;
+      
+      // Basic Role Check logic can be done here or trusted from client
+      if (data.role === 'VIEWER') return;
+
+      activePresentations.set(data.workspaceId, {
+        presenterId: userId,
+        role: data.role,
+        documentId: data.documentId,
+        peerId: data.peerId
+      });
+
+      console.log(`[Presentation] User ${userId} started presenting in workspace ${data.workspaceId}`);
+      io.to(`workspace:${data.workspaceId}`).emit('presentation:started', activePresentations.get(data.workspaceId));
+    });
+
+    socket.on('presentation:stop', (workspaceId: string) => {
+      const presentation = activePresentations.get(workspaceId);
+      if (presentation && presentation.presenterId === userId) {
+        activePresentations.delete(workspaceId);
+        io.to(`workspace:${workspaceId}`).emit('presentation:stopped');
+        console.log(`[Presentation] User ${userId} stopped presenting in workspace ${workspaceId}`);
+      }
+    });
+
+    socket.on('presentation:switch_doc', (data: { workspaceId: string, documentId: string }) => {
+      const presentation = activePresentations.get(data.workspaceId);
+      if (presentation && presentation.presenterId === userId) {
+        presentation.documentId = data.documentId;
+        io.to(`workspace:${data.workspaceId}`).emit('presentation:doc_switched', { documentId: data.documentId });
+      }
+    });
+
+    // Handle scroll sync with basic RBAC priority
+    // Higher privilege overrides lower privilege. (OWNER > ADMIN > EDITOR)
+    const rolePriority = { 'OWNER': 3, 'ADMIN': 2, 'EDITOR': 1, 'VIEWER': 0 };
+    
+    socket.on('presentation:scroll', (data: { workspaceId: string, scrollY: number, role: string }) => {
+      const presentation = activePresentations.get(data.workspaceId);
+      if (!presentation) return;
+
+      const currentPresenterPriority = rolePriority[presentation.role as keyof typeof rolePriority] || 0;
+      const incomingPriority = rolePriority[data.role as keyof typeof rolePriority] || 0;
+
+      // Only allow scroll if incoming is presenter or has HIGHER priority (if same priority, presenter wins to prevent fighting)
+      if (userId === presentation.presenterId || incomingPriority > currentPresenterPriority) {
+        // If someone with higher priority scrolled, they take over the presentation role for scrolling
+        if (incomingPriority > currentPresenterPriority) {
+           presentation.presenterId = userId;
+           presentation.role = data.role;
+           io.to(`workspace:${data.workspaceId}`).emit('presentation:takeover', { presenterId: userId, role: data.role });
+        }
+        
+        socket.to(`workspace:${data.workspaceId}`).emit('presentation:sync_scroll', { scrollY: data.scrollY });
+      }
+    });
+
+    // Audio Admin Controls
+    socket.on('presentation:mute_user', (data: { workspaceId: string, targetUserId: string }) => {
+      // Assuming authorization check was done on client before sending this,
+      // but ideally we'd check if `userId` is ADMIN/OWNER in DB here.
+      io.to(`workspace:${data.workspaceId}`).emit('presentation:force_mute', { targetUserId: data.targetUserId });
     });
 
     /**

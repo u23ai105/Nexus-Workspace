@@ -11,6 +11,8 @@ import userRoutes from './routes/user.route';
 import messageRoutes from './routes/message.route';
 import dmRoutes from './routes/dm.route';
 import aiRoutes from './routes/ai.route';
+import folderRoutes from './routes/folder.routes';
+import taskRoutes from './routes/task.routes';
 
 dotenv.config();
 
@@ -49,6 +51,8 @@ app.use('/api/invitations', invitationRoutes);
 app.use('/api/dms', dmRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/workspaces/:workspaceId/folders', folderRoutes);
+app.use('/api/workspaces/:workspaceId/tasks', taskRoutes);
 
 // Start Server if not in test mode
 let server: any;

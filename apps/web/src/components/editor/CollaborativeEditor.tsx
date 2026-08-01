@@ -21,6 +21,9 @@ interface CollaborativeEditorProps {
   documentType?: 'TEXT' | 'CANVAS'
   initialContent?: string | null
   readOnly?: boolean
+  globalSocket?: Socket | null
+  workspaceId?: string
+  userRole?: string
   onRename?: (newTitle: string) => void
   onBack?: () => void
 }
@@ -55,6 +58,9 @@ function CollaborativeTextEditor({
   serverUrl,
   documentTitle = 'Untitled Document',
   readOnly = false,
+  globalSocket,
+  workspaceId,
+  userRole,
   onRename,
   onBack,
 }: CollaborativeEditorProps) {
@@ -200,7 +206,7 @@ function CollaborativeTextEditor({
       try {
         applyAwarenessUpdate(awareness, new Uint8Array(data), 'server')
       } catch (err) {
-        console.error('[Collab] Error applying awareness update:', err)
+        console.error('[Collab] Error applying remote awareness update:', err)
       }
     })
 
@@ -241,6 +247,47 @@ function CollaborativeTextEditor({
   // ydoc and awareness are stable refs — they must NOT be deps.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [documentId, userId, userName, userColor, token, serverUrl])
+
+  // Global scroll syncing
+  useEffect(() => {
+    if (!globalSocket || !workspaceId || readOnly) return;
+
+    let timeoutId: any;
+    const handleScroll = () => {
+      // scroll container might be window or a specific div
+      const scrollY = window.scrollY || document.documentElement.scrollTop;
+      globalSocket.emit('presentation:scroll', { workspaceId, scrollY, role: userRole });
+    };
+
+    const debounceScroll = () => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(handleScroll, 100);
+    };
+
+    const scrollContainer = document.querySelector('.ProseMirror') || window;
+    
+    scrollContainer.addEventListener('scroll', debounceScroll);
+
+    const onSyncScroll = (data: { scrollY: number }) => {
+      scrollContainer.removeEventListener('scroll', debounceScroll);
+      if (scrollContainer === window) {
+        window.scrollTo({ top: data.scrollY, behavior: 'smooth' });
+      } else {
+        (scrollContainer as Element).scrollTo({ top: data.scrollY, behavior: 'smooth' });
+      }
+      
+      setTimeout(() => {
+        scrollContainer.addEventListener('scroll', debounceScroll);
+      }, 500);
+    };
+
+    globalSocket.on('presentation:sync_scroll', onSyncScroll);
+
+    return () => {
+      scrollContainer.removeEventListener('scroll', debounceScroll);
+      globalSocket.off('presentation:sync_scroll', onSyncScroll);
+    };
+  }, [globalSocket, workspaceId, userRole, readOnly]);
 
   return (
     <div className="relative w-full h-full">

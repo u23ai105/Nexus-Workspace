@@ -4,6 +4,8 @@ const CollaborativeEditor = lazy(() => import('./components/editor/Collaborative
 import { DocumentDashboard } from './components/dashboard/DocumentDashboard'
 import { Home } from './components/home/Home'
 import { NotificationBell } from './components/ui/NotificationBell';
+import { PresentationBar } from './components/dashboard/PresentationBar';
+import { io, Socket } from 'socket.io-client';
 
 import { GlobalChat } from './components/chat/GlobalChat';
 import { MessageCircle } from 'lucide-react';
@@ -40,6 +42,7 @@ export default function App() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [successMsg, setSuccessMsg] = useState<string | null>(null)
+  const [globalSocket, setGlobalSocket] = useState<Socket | null>(null)
 
   // Sync token changes to localStorage
   useEffect(() => {
@@ -105,6 +108,28 @@ export default function App() {
       createDefault()
     }
   }, [workspacesData, jwt, user, mutateWorkspaces])
+
+  // Manage Global Socket for Workspace
+  useEffect(() => {
+    if (activeWorkspaceId && jwt) {
+      const socket = io(BACKEND_URL, {
+        auth: { token: jwt },
+        transports: ['websocket']
+      });
+
+      socket.on('connect', () => {
+        socket.emit('workspace:join', activeWorkspaceId);
+      });
+
+      setGlobalSocket(socket);
+
+      return () => {
+        socket.disconnect();
+      };
+    } else {
+      setGlobalSocket(null);
+    }
+  }, [activeWorkspaceId, jwt]);
 
   const handleCreateWorkspace = async (name: string) => {
     try {
@@ -337,6 +362,9 @@ export default function App() {
                 documentType={selectedDoc.type}
                 initialContent={selectedDoc.textContent}
                 readOnly={userRole === 'VIEWER'}
+                globalSocket={globalSocket}
+                workspaceId={activeWorkspaceId || undefined}
+                userRole={userRole}
                 onBack={() => setSelectedDoc(null)}
                 onRename={(newTitle) => {
                   setSelectedDoc((prev) => (prev ? { ...prev, title: newTitle } : null))
@@ -393,6 +421,29 @@ export default function App() {
             />
           )}
         </main>
+        
+        {activeWorkspaceId && user && (
+          <PresentationBar
+            socket={globalSocket}
+            workspaceId={activeWorkspaceId}
+            userId={user.id}
+            userRole={userRole}
+            currentDocumentId={selectedDoc?.id || ''}
+            onNavigateToDocument={(docId) => {
+              // We need to fetch the document to select it
+              fetch(`${BACKEND_URL}/api/documents/${docId}`, {
+                headers: { Authorization: `Bearer ${jwt}` }
+              })
+                .then(res => res.json())
+                .then(data => {
+                  if (data.document) {
+                    setSelectedDoc(data.document);
+                  }
+                })
+                .catch(console.error);
+            }}
+          />
+        )}
       </div>
     )
   }

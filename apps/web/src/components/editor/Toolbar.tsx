@@ -10,7 +10,10 @@ import {
   Undo2, Redo2,
   RemoveFormatting,
   BarChart2,
-  Sparkles
+  Sparkles,
+  Video as YoutubeIcon,
+  MessageCircle as TwitterIcon,
+  Columns as ColumnsIcon
 } from 'lucide-react'
 
 interface ToolbarProps {
@@ -54,6 +57,30 @@ export function EditorToolbar({ editor }: ToolbarProps) {
       return
     }
     editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run()
+  }
+
+  const addYoutubeVideo = () => {
+    const url = prompt('Enter YouTube URL')
+    if (url) {
+      editor.commands.setYoutubeVideo({
+        src: url,
+        width: Math.max(320, parseInt('640', 10)) || 640,
+        height: Math.max(180, parseInt('480', 10)) || 480,
+      })
+    }
+  }
+
+  const addTweet = () => {
+    const url = prompt('Enter Tweet URL (e.g. https://twitter.com/user/status/123456789)')
+    if (url) {
+      const match = url.match(/(?:twitter\.com|x\.com)\/.*\/status\/([0-9]+)/i)
+      const tweetId = match ? match[1] : url
+      
+      // We pass any string, if it's not a pure ID we fallback to trying the string itself (maybe user pasted just the ID)
+      if (tweetId) {
+        editor.commands.setTweet({ tweetId })
+      }
+    }
   }
 
   return (
@@ -224,10 +251,31 @@ export function EditorToolbar({ editor }: ToolbarProps) {
       <Divider />
 
       <ToolbarButton
+        onClick={() => editor.chain().focus().insertKanban().run()}
+        title="Insert Kanban Board"
+      >
+        <ColumnsIcon size={16} className="text-orange-500" />
+      </ToolbarButton>
+
+      <ToolbarButton
         onClick={() => editor.chain().focus().insertContent({ type: 'poll' }).run()}
         title="Insert Poll (/poll)"
       >
         <BarChart2 size={16} />
+      </ToolbarButton>
+
+      <ToolbarButton
+        onClick={addYoutubeVideo}
+        title="Embed YouTube Video"
+      >
+        <YoutubeIcon size={16} className="text-red-500" />
+      </ToolbarButton>
+
+      <ToolbarButton
+        onClick={addTweet}
+        title="Embed Tweet"
+      >
+        <TwitterIcon size={16} className="text-blue-400" />
       </ToolbarButton>
       
       <ToolbarButton

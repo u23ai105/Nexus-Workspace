@@ -3,7 +3,7 @@ import { NodeViewWrapper } from '@tiptap/react'
 import type { NodeViewProps } from '@tiptap/react'
 
 export const PollBlock: React.FC<NodeViewProps> = (props) => {
-  const { node, updateAttributes, editor } = props;
+  const { node, updateAttributes, editor, deleteNode } = props;
   const { question, options } = node.attrs;
   
   // The current user (we get this from editor storage or window, or context)
@@ -59,7 +59,7 @@ export const PollBlock: React.FC<NodeViewProps> = (props) => {
   const totalVotes = options.reduce((sum: number, opt: any) => sum + opt.votes.length, 0);
 
   return (
-    <NodeViewWrapper className="poll-block my-6 border border-primary/30 rounded-xl bg-card p-5 shadow-sm max-w-md mx-auto">
+    <NodeViewWrapper className="poll-block my-6 border border-primary/30 rounded-xl bg-card p-5 shadow-sm max-w-md mx-auto group">
       <div className="flex items-center gap-2 mb-4">
         <div className="p-2 rounded-lg bg-primary/20 text-primary">
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -67,13 +67,22 @@ export const PollBlock: React.FC<NodeViewProps> = (props) => {
           </svg>
         </div>
         {editor.isEditable ? (
-          <input
-            type="text"
-            value={question}
-            onChange={updateQuestion}
-            placeholder="Ask a question..."
-            className="flex-1 bg-transparent text-lg font-semibold text-foreground focus:outline-none focus:border-b focus:border-primary border-b border-transparent placeholder-muted-foreground"
-          />
+          <>
+            <input
+              type="text"
+              value={question}
+              onChange={updateQuestion}
+              placeholder="Ask a question..."
+              className="flex-1 bg-transparent text-lg font-semibold text-foreground focus:outline-none focus:border-b focus:border-primary border-b border-transparent placeholder-muted-foreground"
+            />
+            <button 
+              onClick={deleteNode}
+              className="opacity-0 group-hover:opacity-100 p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-all ml-auto"
+              title="Delete Poll"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+            </button>
+          </>
         ) : (
           <h3 className="flex-1 text-lg font-semibold text-foreground">{question}</h3>
         )}

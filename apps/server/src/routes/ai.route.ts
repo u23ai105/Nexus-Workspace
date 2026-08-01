@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { aiPrompt } from '../controllers/ai.controller';
+import { aiPrompt, workspaceChat } from '../controllers/ai.controller';
 import { authenticateJWT } from '../middlewares/auth.middleware';
 
 const router = Router();
@@ -8,5 +8,6 @@ const router = Router();
 router.use(authenticateJWT);
 
 router.post('/prompt', aiPrompt);
+router.post('/workspace-chat', workspaceChat);
 
 export default router;

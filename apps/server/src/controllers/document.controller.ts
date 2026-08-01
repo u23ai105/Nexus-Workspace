@@ -18,12 +18,14 @@ const createDocumentSchema = z.object({
   workspaceId: z.string().min(1, "Workspace ID is required"),
   title: z.string().optional(),
   type: z.enum(['TEXT', 'CANVAS']).optional(),
+  folderId: z.string().nullable().optional(),
 });
 
 const updateDocumentSchema = z.object({
   title: z.string().optional(),
   isArchived: z.boolean().optional(),
   textContent: z.string().optional(),
+  folderId: z.string().nullable().optional(),
 });
 
 // GET /api/documents?workspaceId=...&isArchived=true/false
@@ -60,6 +62,7 @@ export const getDocuments = async (req: AuthRequest, res: Response) => {
         textContent: true,
         isArchived: true,
         type: true,
+        folderId: true,
         createdAt: true,
         updatedAt: true,
         creator: {
@@ -122,7 +125,7 @@ export const createDocument = async (req: AuthRequest, res: Response) => {
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-    const { workspaceId, title } = createDocumentSchema.parse(req.body);
+    const { workspaceId, title, type, folderId } = createDocumentSchema.parse(req.body);
 
     // Verify workspace access AND check role (VIEWER cannot create)
     const role = await getUserRole(userId, workspaceId);
@@ -152,7 +155,8 @@ export const createDocument = async (req: AuthRequest, res: Response) => {
         title: finalTitle,
         workspaceId,
         creatorId: userId,
-        type: req.body.type === 'CANVAS' ? 'CANVAS' : 'TEXT',
+        type: type === 'CANVAS' ? 'CANVAS' : 'TEXT',
+        folderId: folderId || null,
       },
     });
 
@@ -173,7 +177,7 @@ export const updateDocument = async (req: AuthRequest, res: Response) => {
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
     const { id } = req.params;
-    const { title, isArchived, textContent } = updateDocumentSchema.parse(req.body);
+    const { title, isArchived, textContent, folderId } = updateDocumentSchema.parse(req.body);
 
     const existing = await prisma.document.findUnique({
       where: { id },
@@ -198,6 +202,7 @@ export const updateDocument = async (req: AuthRequest, res: Response) => {
         ...(title !== undefined && { title: title.trim() }),
         ...(isArchived !== undefined && { isArchived }),
         ...(textContent !== undefined && { textContent }),
+        ...(folderId !== undefined && { folderId }),
       },
     });
 
