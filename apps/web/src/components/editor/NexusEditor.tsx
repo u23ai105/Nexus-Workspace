@@ -33,11 +33,9 @@ interface NexusEditorProps {
   user: { name: string; color: string }
   documentTitle: string
   readOnly?: boolean
-  onRename?: (newTitle: string) => void
   onBack?: () => void
   token: string
   serverUrl: string
-  onStartFollowMe?: () => void
 }
 
 // A single online user record extracted from the Yjs Awareness state map.
@@ -129,7 +127,7 @@ function OnlineBar({ users }: { users: OnlineUser[] }) {
 
 // ── Main Component: NexusEditor ────────────────────────────────────────────
 
-export function NexusEditor({ ydoc, awareness, user, documentTitle, readOnly = false, onRename, onBack, token, serverUrl, onStartFollowMe }: NexusEditorProps) {
+export function NexusEditor({ ydoc, awareness, user, documentTitle, readOnly = false, onBack, token, serverUrl }: NexusEditorProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   
@@ -264,12 +262,6 @@ export function NexusEditor({ ydoc, awareness, user, documentTitle, readOnly = f
     [], // Stable — ydoc and awareness are created once per session in refs
   )
 
-  const [isRenaming, setIsRenaming] = useState(false)
-  const [titleInput, setTitleInput] = useState(documentTitle)
-
-  useEffect(() => {
-    setTitleInput(documentTitle)
-  }, [documentTitle])
   const [saveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved')
   const [isUploading, setIsUploading] = useState(false)
 
@@ -441,13 +433,6 @@ export function NexusEditor({ ydoc, awareness, user, documentTitle, readOnly = f
     }
   }, [editor, readOnly, presenterInfo])
 
-  const handleTitleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (titleInput.trim() && titleInput !== documentTitle && onRename) {
-      onRename(titleInput.trim())
-    }
-    setIsRenaming(false)
-  }
 
   return (
     <div 
@@ -459,7 +444,7 @@ export function NexusEditor({ ydoc, awareness, user, documentTitle, readOnly = f
       className={`nexus-editor-container bg-background h-full overflow-y-auto relative overflow-x-hidden ${presenterInfo && !localIsPresenting ? 'overflow-hidden' : ''}`}
     >
       {/* Sticky Header Group */}
-      <div className="sticky top-0 z-40 w-full flex flex-col shadow-sm">
+      <div className="sticky top-0 z-40 w-full flex flex-col bg-background/95 backdrop-blur-xl border-b border-border/50">
         {/* Presentation Banner */}
         {(localIsPresenting || presenterInfo) && (
           <PresentationBanner
@@ -473,129 +458,92 @@ export function NexusEditor({ ydoc, awareness, user, documentTitle, readOnly = f
           />
         )}
 
-        {/* Top Header Bar with Back Button, Inline Title, and Status Badge */}
-        <div className="flex items-center justify-between px-6 py-3.5 bg-background/90 backdrop-blur-xl border-b border-border/50 w-full">
-        <div className="flex items-center space-x-4 flex-1 min-w-0 mr-4">
+        {/* Unified Editor Header (Merged Toolbar) */}
+        <div className="w-full h-12 flex items-center px-4 sm:px-6">
+          {/* Left: Back Button */}
           {onBack && (
             <button
               onClick={() => {
-                if (saveStatus === 'saving' && !confirm('Your recent edits are currently syncing to cloud. Leave anyway?')) {
-                  return
-                }
-                onBack()
+                if (saveStatus === 'saving' && !confirm('Your recent edits are currently syncing to cloud. Leave anyway?')) return;
+                onBack();
               }}
-              className="flex items-center space-x-1.5 text-xs text-muted-foreground hover:text-foreground bg-muted/50 hover:bg-muted px-3 py-1.5 rounded-md border border-border transition-all shrink-0"
+              className="flex items-center space-x-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors shrink-0 mr-4"
+              title="Back to Dashboard"
             >
-              <span>⬅</span>
-              <span>Dashboard</span>
+              <span>←</span>
+              <span className="hidden sm:inline">Back</span>
             </button>
           )}
 
-          <div className="flex-1 min-w-0">
-            {isRenaming && !readOnly && !presenterInfo ? (
-              <form onSubmit={handleTitleSubmit}>
-                <input
-                  type="text"
-                  value={titleInput}
-                  onChange={(e) => setTitleInput(e.target.value)}
-                  onBlur={() => {
-                    if (titleInput.trim() && titleInput !== documentTitle && onRename) {
-                      onRename(titleInput.trim())
-                    }
-                    setIsRenaming(false)
-                  }}
-                  autoFocus
-                  className="bg-background text-foreground text-lg font-semibold px-2 py-0.5 rounded-sm border border-primary focus:outline-none focus:ring-1 focus:ring-primary w-full max-w-md"
-                />
-              </form>
-            ) : (
-              <div
-                onClick={() => { if (!readOnly && !presenterInfo) setIsRenaming(true) }}
-                className={`group flex items-center space-x-2 py-0.5 px-2 -ml-2 rounded-sm w-fit ${readOnly || presenterInfo ? '' : 'cursor-pointer hover:bg-muted/80 transition-colors'}`}
-                title={readOnly || presenterInfo ? "Read Only" : "Click to rename document inline"}
-              >
-                <h2 className="text-lg font-semibold text-foreground truncate">{documentTitle}</h2>
-                {!readOnly && !presenterInfo && <span className="text-xs text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">✏️</span>}
-              </div>
+          {/* Center/Left: Formatting Toolbar */}
+          <div className="flex-1 overflow-x-auto no-scrollbar flex items-center">
+            <EditorToolbar editor={editor} />
+          </div>
+
+          {/* Right: Actions */}
+          <div className="flex items-center space-x-2 shrink-0 ml-4">
+            <div className="hidden lg:block mr-2">
+              <OnlineBar users={onlineUsers} />
+            </div>
+
+            {!readOnly && (
+              <>
+                <ExportMenu editor={editor} documentTitle={documentTitle} />
+                <button
+                  onClick={togglePresentation}
+                  disabled={!!presenterInfo && !localIsPresenting}
+                  className={`hidden sm:flex px-2.5 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                    localIsPresenting
+                      ? 'bg-red-500/10 text-red-500 hover:bg-red-500/20'
+                      : presenterInfo
+                      ? 'bg-muted text-muted-foreground opacity-50 cursor-not-allowed'
+                      : 'bg-primary/10 text-primary hover:bg-primary/20'
+                  }`}
+                >
+                  {localIsPresenting ? 'Stop' : 'Present'}
+                </button>
+              </>
             )}
+
+            {/* Save Status */}
+            {isUploading ? (
+              <span className="flex items-center text-xs font-medium text-muted-foreground">
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse sm:mr-1.5" />
+                <span className="hidden sm:inline">Uploading...</span>
+              </span>
+            ) : saveStatus === 'saved' ? (
+              <span className="flex items-center text-xs font-medium text-muted-foreground" title="Saved to cloud">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500/70 sm:mr-1.5" />
+                <span className="hidden sm:inline">Saved</span>
+              </span>
+            ) : saveStatus === 'saving' ? (
+              <span className="flex items-center text-xs font-medium text-muted-foreground">
+                <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse sm:mr-1.5" />
+                <span className="hidden sm:inline">Saving...</span>
+              </span>
+            ) : null}
+            
+            {/* Live Presence (Mobile fallback) */}
+            <div className="lg:hidden ml-2 pl-2 border-l border-border/50 flex items-center">
+              <OnlineBar users={onlineUsers} />
+            </div>
           </div>
         </div>
-
-        <div className="flex items-center space-x-3 shrink-0">
-          {!readOnly && (
-            <>
-              <ExportMenu editor={editor} documentTitle={documentTitle} />
-              <button
-                onClick={togglePresentation}
-                disabled={!!presenterInfo && !localIsPresenting}
-                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-                  localIsPresenting
-                    ? 'bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500/20'
-                    : presenterInfo
-                    ? 'bg-muted text-muted-foreground opacity-50 cursor-not-allowed'
-                    : 'bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20'
-                }`}
-              >
-                {localIsPresenting ? 'Stop Presenting' : 'Start Presenting'}
-              </button>
-              {onStartFollowMe && (
-                <button
-                  onClick={onStartFollowMe}
-                  className="px-3 py-1.5 text-xs font-medium rounded-md transition-colors bg-purple-500/10 text-purple-500 border border-purple-500/20 hover:bg-purple-500/20 flex items-center space-x-1"
-                >
-                  <svg className="w-3.5 h-3.5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  Start Follow Me
-                </button>
-              )}
-            </>
-          )}
-
-          {isUploading && (
-            <span className="inline-flex items-center space-x-1.5 text-xs font-medium text-foreground bg-muted border border-border px-2.5 py-1 rounded-md">
-              <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
-              <span>Uploading Image...</span>
-            </span>
-          )}
-          {saveStatus === 'saved' && !isUploading && (
-            <span className="inline-flex items-center space-x-1.5 text-xs font-medium text-muted-foreground bg-muted/50 border border-border px-2.5 py-1 rounded-md">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-              <span>Saved to Cloud</span>
-            </span>
-          )}
-          {saveStatus === 'saving' && (
-            <span className="inline-flex items-center space-x-1.5 text-xs font-medium text-foreground bg-muted border border-border px-2.5 py-1 rounded-md">
-              <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-              <span>Saving...</span>
-            </span>
-          )}
-        </div>
-      </div>
-      
-      {/* ── Toolbar & OnlineBar (Sticky) ── */}
-      <div className="w-full bg-background/95 backdrop-blur-md border-b border-border/30 shadow-sm z-30">
-        <div className="max-w-5xl mx-auto px-4 py-2 flex flex-col gap-2">
-          {/* Live presence bar */}
-          <OnlineBar users={onlineUsers} />
-          {/* Formatting toolbar */}
-          <EditorToolbar editor={editor} />
-        </div>
-      </div>
       </div> {/* End Sticky Header Group */}
 
-      <div className="relative z-10 max-w-5xl mx-auto pb-24 min-h-full flex flex-col">
-      <>
-          {/* The ProseMirror / Tiptap editable surface */}
-          <div 
-            className="nexus-editor__content-wrapper w-full h-fit min-h-[70vh] transition-all"
-            style={{ zoom: zoomLevel } as React.CSSProperties}
-          >
-            <EditorContent editor={editor} className="nexus-editor__content" />
+      <div className="relative z-10 w-full h-full flex flex-col flex-1 overflow-hidden">
+        <div className="w-full h-full overflow-y-auto">
+          <div className="w-[min(calc(100%_-_2rem),48rem)] mx-auto px-4 sm:px-8 pb-24 min-h-[calc(100vh-100px)] flex flex-col">
+            {/* The ProseMirror / Tiptap editable surface */}
+            <div 
+              className="nexus-editor__content-wrapper w-full flex-1 transition-all prose prose-invert max-w-none leading-relaxed prose-p:my-2 prose-headings:mb-3 prose-headings:mt-6"
+              style={{ zoom: zoomLevel } as React.CSSProperties}
+            >
+              <EditorContent editor={editor} className="nexus-editor__content" />
+            </div>
           </div>
-          
+        </div>
         <AIFloatingMenu editor={editor} token={token} serverUrl={serverUrl} />
-      </>
       </div>
     </div>
   )

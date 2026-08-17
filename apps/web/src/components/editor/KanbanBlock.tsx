@@ -106,16 +106,16 @@ export const KanbanBlock: React.FC<NodeViewProps> = (props) => {
                   {editor.isEditable && (
                     <div className="absolute top-2 right-2 opacity-0 group-hover/card:opacity-100 flex gap-1 bg-background rounded-md shadow-sm border border-border">
                       {col.id !== 'todo' && (
-                        <button onClick={() => moveCard(col.id, col.id === 'done' ? 'in-progress' : 'todo', card.id)} className="p-1 hover:text-primary transition-colors" title="Move Left">
+                        <button onClick={() => moveCard(col.id, col.id === 'done' ? 'in-progress' : 'todo', card.id)} className="p-1 hover:text-primary transition-colors" title="Move Left" aria-label="Move Left">
                           <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
                         </button>
                       )}
                       {col.id !== 'done' && (
-                        <button onClick={() => moveCard(col.id, col.id === 'todo' ? 'in-progress' : 'done', card.id)} className="p-1 hover:text-primary transition-colors" title="Move Right">
+                        <button onClick={() => moveCard(col.id, col.id === 'todo' ? 'in-progress' : 'done', card.id)} className="p-1 hover:text-primary transition-colors" title="Move Right" aria-label="Move Right">
                           <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
                         </button>
                       )}
-                      <button onClick={() => deleteCard(col.id, card.id)} className="p-1 hover:text-destructive transition-colors" title="Delete">
+                      <button onClick={() => deleteCard(col.id, card.id)} className="p-1 hover:text-destructive transition-colors" title="Delete" aria-label="Delete">
                         <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                       </button>
                     </div>

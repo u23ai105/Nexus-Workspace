@@ -1311,3 +1311,145 @@ To make the dashboard cleaner, we implemented toggles for the sidebars:
 - Added `isMainSidebarOpen` state to hide the main primary navigation sidebar using a hamburger/toggle button.
 - Added `isFolderSidebarOpen` state, controlled via a new "Folders" toggle option inside the main navigation list. This controls the rendering of the `FolderSidebar` component.
 
+---
+
+## [Date: 2026-08-11] - Phase 1: Design System & Visual Language
+
+### 1. Migrating to Shadcn UI Primitives
+**Logic:**
+To elevate the visual quality of the app to match modern professional standards (Notion/Linear aesthetics), we stripped out all manual custom buttons, inputs, dropdowns, and dialogs.
+- **Tokens**: We configured a centralized CSS variable system in `apps/web/src/index.css` for a strictly neutral-first, dark-mode prioritized theme (e.g. `bg-background`, `bg-card`).
+- **Primitives**: We ran the Shadcn CLI to scaffold standard components (`Button`, `Card`, `Input`, `Dialog`, `DropdownMenu`).
+- **CSS Compatability**: Since Nexus uses `tailwindcss v3`, we downgraded standard Shadcn Tailwind v4 syntax (`--spacing()`) inside components like `Card` back to v3 compatible classes (`p-6`, `space-y-1.5`).
+
+### 2. Refactoring Dashboard Components
+**Logic:**
+We fully refactored the core dashboard components (`DocumentDashboard.tsx`, `DocumentCard.tsx`, `FolderCard.tsx`, `ManageTeamModal.tsx`) to use the new primitives.
+- **Modals**: Replaced manually built fixed-position overlays with the accessible Shadcn `<Dialog>`.
+- **Menus**: Replaced custom state-driven `div` dropdowns with Radix-powered `<DropdownMenu>`.
+- **Typography & Icons**: Enforced standard typography scales and consistent `w-4 h-4` Lucide React icons across all action areas, entirely eliminating the use of inline raw hex colors or arbitrary paddings.
+
+
+### 3. Phase 1 Rework: Layout Architecture & UX Consistency
+**Logic:**
+Based on QA feedback, we revisited the architectural layout to enforce a strict hierarchy and address visual defects.
+- **Top Global Header (`App.tsx`):** Ensured the persistent top header manages global context (Logo, Workspace Switcher, Global Notifications, Profile) independently from workspace content.
+- **Unified Left Sidebar (`DocumentDashboard.tsx`):** Eliminated the "double sidebar" issue by consolidating all workspace navigation (Documents, Folders, Chat, Tasks, AI) into a single, responsive left sidebar (256px fixed width on desktop).
+- **Responsive Layout Constraints:**
+  - Desktop (>=1440px): Sidebar is fixed. Up to 3 right panels open.
+  - Laptop (1024px-1439px): Sidebar is fixed. Up to 2 right panels.
+  - Tablet (768px-1023px): Sidebar becomes a collapsible overlay. Right panel max 1.
+  - Mobile (<768px): Sidebar opens as a full-height drawer with a `bg-black/60` backdrop. Right panels act as full-screen overlays.
+- **Dynamic Panel System:** Transitioned from multiple boolean flags (`isChatOpen`, `isTasksOpen`) to a single `activePanels: string[]` array. The application automatically enforces the responsive constraints by shifting oldest non-primary panels out of the array.
+- **Unified Card Primitives (`WorkspaceItemCard.tsx`):** Created a single source of truth component for both `DocumentCard` and `FolderCard`. This enforces strict height (`h-[14rem]`), layout paddings, and precise font size consistency across the entire grid. Instead of using excessive shadows for hover states, we implemented subtle `bg-muted/20` and `border-border` background changes.
+- **Modal Overhaul (`ManageTeamModal.tsx`):** Completely replaced the manual modal implementation with Shadcn's `<Dialog>`. Ensured standard semantic `<DialogOverlay>` for the background blur and established clear visual hierarchy inside the team list.
+- **Verification:** Ran `tsc --noEmit`, `pnpm run lint`, and `pnpm run build` to guarantee structural integrity. Authored a precise set of human QA constraints in `PHASE_1_HUMAN_TEST_PLAN.md` specifically validating responsive behaviors across all viewport breakpoints.
+
+## Phase 1 Rework V2 Execution - UI/UX Refinements
+
+**Date:** 2026-08-12
+
+### What was done:
+1. **Manage Team Modal Polish:**
+   - Modified `ManageTeamModal.tsx` to upgrade its visual hierarchy and aesthetics.
+   - Upgraded the `DialogContent` to use `shadow-xl rounded-2xl` for a premium float effect.
+   - Replaced heavy background borders with clean `border-b border-border/50` separators for sections.
+   - Improved typography by standardizing to `text-foreground` and `text-muted-foreground`.
+   - **Why?** The previous modal felt boxed in and heavy. Removing internal background boxes and relying on whitespace, dividers, and typography creates a calmer, more professional UI (matching the "dense, professional dark UI" principle).
+
+2. **Top Header Information Architecture:**
+   - Modified `App.tsx` navigation header to include full breadcrumbs (`Nexus / WorkspaceName / DocumentTitle`).
+   - Replaced redundant buttons with clean global search mock, notification bell, and user avatar.
+   - **Why?** The user specifically requested a Top Global Header (persistent) combined with a Single Left Workspace Sidebar. We moved document titles up into the global header to reduce redundancy and increase the available vertical space for the editor, cementing the core layout architecture.
+
+3. **Accessibility (ARIA Labels):**
+   - Searched codebase using `grep_search` to find all icon-only `<button>` tags without `aria-label`.
+   - Updated `TasksSidebar.tsx`, `KanbanBlock.tsx`, and `WorkspaceChat.tsx` to add descriptive `aria-label` attributes to icon-only buttons (e.g., "Start Progress", "Close Chat").
+   - **Why?** Icon-only buttons without accessible names fail basic WCAG standards. Adding `aria-label` ensures screen readers can announce the button's function.
+
+4. **Editor Non-Regression (Width & Scrollbars):**
+   - Reviewed `CollaborativeEditor.tsx` and `NexusEditor.tsx`.
+   - Removed redundant `sticky top-0 z-40` from `Toolbar.tsx` because `NexusEditor.tsx` already wraps the toolbar in a sticky header group. This prevents z-index fighting and layout jumps.
+   - Fixed the editor width by updating the container in `NexusEditor.tsx` from `max-w-5xl` to `max-w-4xl`, adhering strictly to the user's non-regression constraint.
+   - **Why?** The document editor is the core product surface. A `max-w-4xl` bounds ensures lines of text don't become unreadably long on large desktop screens, maintaining optimal reading typography line lengths (usually 60-80 characters).
+
+5. **Lint and Build Verification:**
+   - Ran `pnpm run build` which runs `tsc -b && vite build`.
+   - Identified a JSX syntax error (`error TS17008: JSX element 'header' has no corresponding closing tag`) caused by a stray `</>` artifact from a file replacement in `App.tsx`.
+   - Used `multi_replace_file_content` to fix the stray tag.
+   - Re-ran `pnpm run build` and `pnpm run lint`.
+   - **Results:** 
+     - Build succeeded (0 errors).
+     - Lint succeeded with 0 errors and 9 non-blocking warnings (mostly exhaustive-deps in React hooks).
+   - **Why?** Ensuring automated checks pass before declaring a task complete is critical for stability. It prevents "it works on my machine" visual bugs from turning into broken deployments.
+
+### Commands Run:
+- `pnpm --filter server run dev`: Starts the backend API using Turborepo filter.
+- `pnpm --filter web run dev`: Starts the Vite frontend dev server.
+- `pnpm run build`: Executes TypeScript compilation and Vite production build to catch type/syntax errors.
+- `pnpm run lint`: Executes `oxlint` to catch static code issues.
+
+
+## Phase 1 Rework V3 Execution - Final UI/UX Polish
+
+**Date:** 2026-08-12
+
+### What was done:
+1. **Search Consolidation:**
+   - Lifted `searchQuery` state out of `DocumentDashboard.tsx` and moved it into `App.tsx`.
+   - Connected the global header search input to this state.
+   - Removed the duplicate internal search bar from the Dashboard.
+   - Added a `keydown` event listener in `App.tsx` for `Ctrl+K` (or `Cmd+K`) to focus the global search bar.
+   - **Why?** Having duplicate search fields confuses users. Consolidating into a single global search provides a universal entry point (like Slack or Notion).
+
+2. **Editor Chrome Redesign (Premium Feel):**
+   - Merged the multiple headers in `NexusEditor.tsx` into a single 48px `Editor Header`.
+   - Implemented a "Ghost Breadcrumb" (`← Documents / Title`) on the left side, replacing the bulky button.
+   - Moved the `OnlineBar` (live presence avatars) into the right side of the Editor Header for Desktop, falling back to the toolbar row on mobile.
+   - Updated `Toolbar.tsx` to remove wrapping (`flex-wrap`). Wrapped it in `overflow-x-auto` in the parent so that it scrolls horizontally on mobile devices rather than pushing editor content down.
+   - Applied `prose prose-invert max-w-none leading-relaxed` and `max-w-3xl mx-auto` to the `EditorContent` wrapper.
+   - **Why?** Reclaiming vertical space allows the actual document to be the primary focus. Tighter line heights and centered content dramatically improve reading ergonomics.
+
+3. **Dashboard Density & Sidebar Refinement:**
+   - Reduced outer padding on the dashboard main container (`p-4 sm:p-8`).
+   - Adjusted `DocumentDashboard.tsx` sidebar navigation to use `space-y-0.5` for tighter vertical rhythms.
+   - Changed the active tab style to `bg-muted/80 text-foreground` for a distinct filled background.
+   - **Why?** A dense information architecture makes the tool feel powerful and professional rather than sparse and unfinished.
+
+4. **Responsive Overlays (Tablet):**
+   - Modified the right panel logic in `DocumentDashboard.tsx` for viewports `<1024px`.
+   - Added a `fixed inset-0 bg-black/40 backdrop-blur-sm z-40` backdrop element when an overlay panel is active.
+   - Constrained the overlay panel width to `w-[min(400px,90vw)]`.
+   - **Why?** Side-by-side panels on a tablet squash the main document too much. Overlays provide a much better mobile/tablet UX.
+
+5. **Modal Backdrop:**
+   - Modified `DialogOverlay` and `DialogContent` in `@/components/ui/dialog.tsx`.
+   - Used `bg-black/60` and `backdrop-blur-md` for the overlay, and `shadow-2xl` for the dialog content.
+   - **Why?** Dimming the background sharply with a blur focuses user attention entirely on the modal task (e.g., inviting a team member).
+
+### Commands Run:
+- `pnpm run build`: Verified that lifting the `searchQuery` state did not cause TypeScript errors. Fixed unused variables (`Input`, `Search` in Dashboard; `onStartFollowMe` in Editor).
+
+
+## Fluid Architecture Refactoring
+
+**Date:** 2026-08-12
+
+### What was done:
+1. **Removed Global  State:** Removed Javascript-based viewport tracking globally. React components should not continuously re-render based on viewport resize unless it dictates fundamental information architecture (e.g., number of concurrent active side-panels).
+2. **Introduced  Hook:** Created a  hook that specifically tracks a container's available space rather than the global viewport width.
+3. **Fluid Grid:** Converted hardcoded breakpoints () in the Document grid to an intrinsic fluid grid using .
+4. **Intrinsic Width Constraints:** Converted the Editor and Modals from rigid fixed widths () to bounds-based layouts  to prevent horizontal overflow on exceptionally narrow devices.
+5. **Documentation Update:** Documented these principles in  and updated  with continuous resize instructions.
+
+
+## Fluid Architecture Refactoring
+
+**Date:** 2026-08-12
+
+### What was done:
+1. **Removed Global `windowWidth` State:** Removed Javascript-based viewport tracking globally. React components should not continuously re-render based on viewport resize unless it dictates fundamental information architecture (e.g., number of concurrent active side-panels).
+2. **Introduced `useContainerSize` Hook:** Created a `ResizeObserver` hook that specifically tracks a container's available space rather than the global viewport width.
+3. **Fluid Grid:** Converted hardcoded breakpoints (`sm:grid-cols-2 md:grid-cols-3`) in the Document grid to an intrinsic fluid grid using `repeat(auto-fit, minmax(min(100%, 260px), 1fr))`.
+4. **Intrinsic Width Constraints:** Converted the Editor and Modals from rigid fixed widths (`max-w-4xl`) to bounds-based layouts `w-[min(calc(100vw-2rem),720px)]` to prevent horizontal overflow on exceptionally narrow devices.
+5. **Documentation Update:** Documented these principles in `docs/NEXUS_RESPONSIVE_SYSTEM.md` and updated `PHASE_1_HUMAN_TEST_PLAN.md` with continuous resize instructions.

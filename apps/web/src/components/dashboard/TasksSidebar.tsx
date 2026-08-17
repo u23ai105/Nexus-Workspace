@@ -167,16 +167,16 @@ export const TasksSidebar: React.FC<TasksSidebarProps> = ({
                     {userRole !== 'VIEWER' && (
                       <div className="flex items-center justify-end gap-2 mt-3 pt-3 border-t border-border/30 opacity-60 group-hover:opacity-100 transition-opacity">
                         {status === 'TODO' && (
-                          <button onClick={() => handleUpdateStatus(task.id, 'IN_PROGRESS')} className="text-xs font-medium px-3 py-1.5 rounded-lg bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 transition-colors flex items-center gap-1.5" title="Start Progress">
+                          <button onClick={() => handleUpdateStatus(task.id, 'IN_PROGRESS')} className="text-xs font-medium px-3 py-1.5 rounded-lg bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 transition-colors flex items-center gap-1.5" title="Start Progress" aria-label="Start Progress">
                             <Clock size={12} /> Start Progress
                           </button>
                         )}
                         {status === 'IN_PROGRESS' && (
-                          <button onClick={() => handleUpdateStatus(task.id, 'DONE')} className="text-xs font-medium px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 transition-colors flex items-center gap-1.5" title="Complete Task">
+                          <button onClick={() => handleUpdateStatus(task.id, 'DONE')} className="text-xs font-medium px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 transition-colors flex items-center gap-1.5" title="Complete Task" aria-label="Complete Task">
                             <CheckCircle size={12} /> Complete
                           </button>
                         )}
-                        <button onClick={() => handleDeleteTask(task.id)} className="text-xs font-medium p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors" title="Delete Task">
+                        <button onClick={() => handleDeleteTask(task.id)} className="text-xs font-medium p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors" title="Delete Task" aria-label="Delete Task">
                           <Trash2 size={14} />
                         </button>
                       </div>

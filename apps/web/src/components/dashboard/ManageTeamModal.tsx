@@ -1,4 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Search, X, UserPlus, Trash2 } from 'lucide-react';
 
 interface User {
   id: string;
@@ -48,9 +53,7 @@ export const ManageTeamModal: React.FC<ManageTeamModalProps> = ({
           headers: { Authorization: `Bearer ${token}` }
         })
           .then(res => res.json())
-          .then(data => {
-            setSearchResults(data.users || []);
-          })
+          .then(data => setSearchResults(data.users || []))
           .catch(() => {});
       } else {
         setSearchResults([]);
@@ -103,7 +106,7 @@ export const ManageTeamModal: React.FC<ManageTeamModalProps> = ({
       setInviteQuery('');
       setSelectedUser(null);
       setSearchResults([]);
-      fetchMembers(); // refresh
+      fetchMembers();
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -131,7 +134,7 @@ export const ManageTeamModal: React.FC<ManageTeamModalProps> = ({
     }
   };
 
-  const handleRemove = async (memberId: string) => {
+  const handleRemoveMember = async (memberId: string) => {
     if (!confirm('Are you sure you want to remove this member?')) return;
     try {
       const res = await fetch(`${serverUrl}/api/workspaces/${workspaceId}/members/${memberId}`, {
@@ -149,172 +152,156 @@ export const ManageTeamModal: React.FC<ManageTeamModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
-      <div className="bg-card w-full max-w-2xl rounded-xl border border-border shadow-lg flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-        
-        {/* Header */}
-        <div className="px-6 py-4 border-b border-border flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-foreground">Manage Team</h2>
-          <button
-            onClick={onClose}
-            className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded-md hover:bg-muted"
-          >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
+    <Dialog open={true} onOpenChange={(open) => !open && onClose()}>
+      {/* We apply a wrapper styling to ensure correct overlay rendering using standard Shadcn */}
+      <DialogContent className="sm:max-w-[720px] p-0 overflow-hidden bg-card border-border shadow-xl rounded-2xl">
+        <DialogHeader className="px-6 md:px-8 py-6 border-b border-border/50 bg-muted/10">
+          <DialogTitle className="text-2xl tracking-tight font-semibold text-foreground">Workspace Team</DialogTitle>
+          <DialogDescription className="text-sm mt-1.5 text-muted-foreground">
+            Invite colleagues to collaborate or manage existing members in this workspace.
+          </DialogDescription>
+        </DialogHeader>
 
-        {/* Content */}
-        <div className="p-6 flex-1 overflow-y-auto">
+        <div className="p-6 md:p-8 max-h-[70vh] overflow-y-auto">
           {error && (
-            <div className="bg-destructive/10 border border-destructive/30 text-destructive text-sm px-4 py-3 rounded-md mb-6">
+            <div className="bg-destructive/10 border border-destructive/20 text-destructive text-sm px-4 py-3 rounded-lg mb-6 flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-destructive flex-shrink-0" />
               {error}
             </div>
           )}
 
-          {/* Invite Section */}
           {(currentUserRole === 'OWNER' || currentUserRole === 'ADMIN') && (
-          <div className="mb-8 p-5 rounded-lg border border-border bg-muted/20">
-            <h3 className="text-sm font-medium text-foreground mb-3">Invite new members</h3>
-            <form onSubmit={handleInvite} className="flex items-start gap-3">
-              <div className="flex-1 relative">
-                {selectedUser ? (
-                  <div className="w-full bg-background border border-primary text-sm rounded-md px-3 py-2 flex items-center justify-between shadow-sm">
-                    <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-full bg-primary/20 text-primary flex items-center justify-center text-xs font-bold uppercase">
-                        {(selectedUser.name || selectedUser.username || selectedUser.email)[0]}
+            <div className="mb-8 pb-8 border-b border-border/50">
+              <h3 className="text-base font-semibold text-foreground mb-1">Invite New Members</h3>
+              <p className="text-sm text-muted-foreground mb-4">Add people by their email or username to give them access.</p>
+              <form onSubmit={handleInvite} className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                <div className="flex-1 w-full relative">
+                  {selectedUser ? (
+                    <div className="w-full bg-background border border-primary text-sm rounded-md px-3 py-2 flex items-center justify-between shadow-sm h-10">
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-full bg-primary/20 text-primary flex items-center justify-center text-xs font-bold uppercase">
+                          {(selectedUser.name || selectedUser.username || selectedUser.email)[0]}
+                        </div>
+                        <span className="font-medium text-foreground truncate max-w-[150px]">
+                          {selectedUser.name || selectedUser.username || selectedUser.email}
+                        </span>
                       </div>
-                      <span className="font-medium text-foreground">{selectedUser.name || selectedUser.username || selectedUser.email}</span>
-                      {selectedUser.username && <span className="text-muted-foreground">@{selectedUser.username}</span>}
+                      <button type="button" onClick={() => { setSelectedUser(null); setInviteQuery(''); }} className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 p-1 rounded transition-colors" aria-label="Clear user">
+                        <X className="w-4 h-4" />
+                      </button>
                     </div>
-                    <button type="button" onClick={() => { setSelectedUser(null); setInviteQuery(''); }} className="text-muted-foreground hover:text-destructive transition-colors">
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                    </button>
-                  </div>
-                ) : (
-                  <input
-                    type="text"
-                    placeholder="Search by username or enter email..."
-                    value={inviteQuery}
-                    onChange={(e) => setInviteQuery(e.target.value)}
-                    className="w-full bg-background border border-border focus:border-primary text-sm rounded-md px-3 py-2 text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary transition-all shadow-sm"
-                  />
-                )}
-                
-                {!selectedUser && searchResults.length > 0 && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-card border border-border rounded-md shadow-lg z-50 max-h-60 overflow-y-auto">
-                    {searchResults.map((u) => (
-                      <div 
-                        key={u.id}
-                        onClick={() => setSelectedUser(u)}
-                        className="px-3 py-2 hover:bg-muted/50 cursor-pointer flex items-center justify-between border-b border-border/50 last:border-0"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-medium uppercase">
-                            {(u.name || u.username || u.email)[0]}
-                          </div>
-                          <div className="flex flex-col">
-                            <span className="text-sm font-medium text-foreground">{u.name || u.username || u.email.split('@')[0]}</span>
-                            {u.username ? (
-                              <span className="text-xs text-muted-foreground">@{u.username}</span>
-                            ) : (
-                              <span className="text-xs text-muted-foreground">{u.email}</span>
-                            )}
+                  ) : (
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        type="text"
+                        placeholder="Search username or email..."
+                        value={inviteQuery}
+                        onChange={(e) => setInviteQuery(e.target.value)}
+                        className="pl-9 h-10 bg-background"
+                      />
+                    </div>
+                  )}
+                  
+                  {!selectedUser && searchResults.length > 0 && (
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-popover border border-border rounded-md shadow-lg z-50 max-h-60 overflow-y-auto p-1">
+                      {searchResults.map((u) => (
+                        <div 
+                          key={u.id}
+                          onClick={() => setSelectedUser(u)}
+                          className="px-3 py-2 hover:bg-muted cursor-pointer flex items-center justify-between rounded-md transition-colors"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-medium uppercase text-sm">
+                              {(u.name || u.username || u.email)[0]}
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-sm font-medium text-foreground">{u.name || u.username || u.email.split('@')[0]}</span>
+                              <span className="text-xs text-muted-foreground">{u.username ? `@${u.username}` : u.email}</span>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <select
-                value={inviteRole}
-                onChange={(e) => setInviteRole(e.target.value as any)}
-                className="bg-background border border-border text-sm rounded-md px-3 py-2 text-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
-              >
-                <option value="ADMIN">Admin</option>
-                <option value="EDITOR">Editor</option>
-                <option value="VIEWER">Viewer</option>
-              </select>
-              <button
-                type="submit"
-                disabled={inviting || (!selectedUser && !inviteQuery.includes('@'))}
-                className="bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium px-6 py-2 rounded-md transition-all shadow-sm disabled:opacity-50"
-              >
-                {inviting ? 'Sending...' : 'Invite'}
-              </button>
-            </form>
-          </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                
+                <div className="flex w-full sm:w-auto items-center gap-3">
+                  <select
+                    value={inviteRole}
+                    onChange={(e) => setInviteRole(e.target.value as any)}
+                    className="flex h-10 w-full sm:w-[120px] items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                    aria-label="Select role"
+                  >
+                    <option value="ADMIN">Admin</option>
+                    <option value="EDITOR">Editor</option>
+                    <option value="VIEWER">Viewer</option>
+                  </select>
+                  
+                  <Button type="submit" disabled={inviting || (!selectedUser && !inviteQuery.includes('@'))} className="h-10 w-full sm:w-auto shadow-sm">
+                    <UserPlus className="w-4 h-4 mr-2" />
+                    {inviting ? 'Inviting...' : 'Invite'}
+                  </Button>
+                </div>
+              </form>
+            </div>
           )}
 
-          {/* Members List */}
           <div>
-            <h3 className="text-sm font-medium text-foreground mb-4">Workspace Members ({members.length})</h3>
+            <h3 className="text-base font-semibold text-foreground mb-4">Existing Members ({members.length})</h3>
             
             {loading ? (
               <div className="flex justify-center py-8">
                 <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
               </div>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-1">
                 {members.map((member) => (
-                  <div key={member.id} className="flex items-center justify-between p-3 rounded-md hover:bg-muted/30 border border-transparent hover:border-border transition-colors">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-medium">
-                        {(member.user.name || member.user.email).charAt(0).toUpperCase()}
+                  <div key={member.id} className="flex items-center justify-between p-3 rounded-lg hover:bg-muted/40 border border-transparent hover:border-border/50 transition-colors group">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-10 h-10 rounded-full bg-secondary text-secondary-foreground flex items-center justify-center font-semibold uppercase text-sm shrink-0 border border-border/50">
+                        {(member.user.name || member.user.username || member.user.email)[0]}
                       </div>
-                      <div>
-                        <p className="text-sm font-medium text-foreground flex items-center gap-2">
-                          {member.user.name || 'Anonymous User'}
-                          {member.status === 'PENDING' && (
-                            <span className="text-[10px] bg-muted text-muted-foreground px-2 py-0.5 rounded-full uppercase tracking-wider font-semibold">Pending</span>
-                          )}
-                        </p>
-                        <p className="text-xs text-muted-foreground">{member.user.email}</p>
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-sm font-medium text-foreground truncate">
+                          {member.user.name || member.user.username || member.user.email.split('@')[0]}
+                        </span>
+                        <span className="text-xs text-muted-foreground truncate">{member.user.email}</span>
                       </div>
+                      {member.status === 'PENDING' && (
+                        <Badge variant="secondary" className="ml-2 text-[10px] uppercase font-bold py-0.5 shrink-0">Pending</Badge>
+                      )}
                     </div>
                     
-                    <div className="flex items-center gap-3">
-                      {/* Role badge with color */}
-                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wider ${
-                        member.role === 'OWNER' ? 'bg-orange-500/20 text-orange-400' :
-                        member.role === 'ADMIN' ? 'bg-blue-500/20 text-blue-400' :
-                        member.role === 'EDITOR' ? 'bg-green-500/20 text-green-400' :
-                        'bg-gray-500/20 text-gray-400'
-                      }`}>
-                        {member.role}
-                      </span>
-                      <select
-                        value={member.role}
-                        onChange={(e) => handleUpdateRole(member.id, e.target.value)}
-                        disabled={
-                          (member.role as string) === 'OWNER' || 
-                          (currentUserRole === 'ADMIN' && ((member.role as string) === 'OWNER' || (member.role as string) === 'ADMIN')) ||
-                          (currentUserRole !== 'OWNER' && currentUserRole !== 'ADMIN')
-                        }
-                        className="bg-card border border-border text-xs rounded-md px-2 py-1 text-foreground focus:outline-none focus:border-primary disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        <option value="OWNER">Owner</option>
-                        <option value="ADMIN">Admin</option>
-                        <option value="EDITOR">Editor</option>
-                        <option value="VIEWER">Viewer</option>
-                      </select>
-                      
-                      <button
-                        onClick={() => handleRemove(member.id)}
-                        disabled={
-                          (member.role as string) === 'OWNER' ||
-                          (currentUserRole === 'ADMIN' && ((member.role as string) === 'OWNER' || (member.role as string) === 'ADMIN')) ||
-                          (currentUserRole !== 'OWNER' && currentUserRole !== 'ADMIN')
-                        }
-                        className="text-muted-foreground hover:text-destructive p-1.5 rounded-md hover:bg-destructive/10 transition-colors disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed"
-                        title="Remove member"
-                      >
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      </button>
+                    <div className="flex items-center gap-3 shrink-0 pl-4">
+                      {member.role === 'OWNER' ? (
+                        <span className="text-sm text-muted-foreground font-medium px-3 py-1">Owner</span>
+                      ) : (
+                        <>
+                          <select
+                            value={member.role}
+                            onChange={(e) => handleUpdateRole(member.id, e.target.value)}
+                            disabled={currentUserRole !== 'OWNER' && currentUserRole !== 'ADMIN'}
+                            className="text-sm bg-transparent border border-border/50 rounded-md px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50 hover:bg-muted/50 transition-colors"
+                            aria-label={`Change role for ${member.user.email}`}
+                          >
+                            <option value="ADMIN">Admin</option>
+                            <option value="EDITOR">Editor</option>
+                            <option value="VIEWER">Viewer</option>
+                          </select>
+                          
+                          {(currentUserRole === 'OWNER' || currentUserRole === 'ADMIN') && (
+                            <button
+                              onClick={() => handleRemoveMember(member.id)}
+                              className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 p-2 rounded-md opacity-0 group-hover:opacity-100 transition-all focus:opacity-100"
+                              title="Remove member"
+                              aria-label="Remove member"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -322,7 +309,7 @@ export const ManageTeamModal: React.FC<ManageTeamModalProps> = ({
             )}
           </div>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 };

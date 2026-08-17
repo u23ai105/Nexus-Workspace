@@ -29,7 +29,7 @@ describe('Workspace API', () => {
   });
 
   it('should fetch workspaces', async () => {
-    const mockWorkspaces = [{ id: 'ws-1', name: 'Test WS', ownerId: 'user-1' }];
+    const mockWorkspaces = [{ id: 'ws-1', name: 'Test WS', ownerId: 'user-1', members: [] }];
     vi.mocked(prisma.workspace.findMany).mockResolvedValue(mockWorkspaces as any);
 
     const res = await request(app)
@@ -37,7 +37,7 @@ describe('Workspace API', () => {
       .set('Authorization', `Bearer ${token}`);
 
     expect(res.status).toBe(200);
-    expect(res.body.workspaces).toEqual(mockWorkspaces);
+    expect(res.body.workspaces).toEqual([{ id: 'ws-1', name: 'Test WS', ownerId: 'user-1', userRole: 'OWNER' }]);
   });
 
   it('should create a workspace', async () => {

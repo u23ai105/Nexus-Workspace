@@ -24,7 +24,6 @@ interface CollaborativeEditorProps {
   globalSocket?: Socket | null
   workspaceId?: string
   userRole?: string
-  onRename?: (newTitle: string) => void
   onBack?: () => void
 }
 
@@ -40,7 +39,6 @@ export function CollaborativeEditor(props: CollaborativeEditorProps) {
         documentTitle={props.documentTitle || 'Untitled Canvas'}
         initialContent={props.initialContent}
         readOnly={props.readOnly}
-        onRename={props.onRename}
         onBack={props.onBack}
       />
     )
@@ -61,7 +59,6 @@ function CollaborativeTextEditor({
   globalSocket,
   workspaceId,
   userRole,
-  onRename,
   onBack,
 }: CollaborativeEditorProps) {
   // ── Stable Yjs instances via ref (never destroyed during StrictMode remounts)
@@ -304,19 +301,9 @@ function CollaborativeTextEditor({
         user={{ name: userName, color: userColor }}
         documentTitle={documentTitle}
         readOnly={readOnly}
-        onRename={onRename}
         onBack={onBack}
         token={token}
         serverUrl={serverUrl}
-        onStartFollowMe={() => {
-          if (globalSocket && workspaceId && userRole !== 'VIEWER') {
-            globalSocket.emit('presentation:start', {
-              workspaceId,
-              documentId,
-              role: userRole
-            });
-          }
-        }}
       />
     </div>
   )

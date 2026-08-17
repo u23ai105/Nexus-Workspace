@@ -1,0 +1,2000 @@
+AUDIT PROMPT ='''
+STOP IMPLEMENTATION.
+
+Before doing anything else, perform a complete verification of the phase you just completed.
+
+Do NOT start the next phase.
+
+Act as an independent senior engineer reviewing another developer's work.
+
+==================================================
+PHASE VERIFICATION
+==================================================
+
+1. Inspect every changed file.
+
+2. Verify the intended functionality.
+
+3. Run typecheck.
+
+4. Run lint.
+
+5. Run tests.
+
+6. Run production build.
+
+7. Start the application.
+
+8. Manually test every changed interaction.
+
+9. Test all adjacent features that could have been affected.
+
+10. Inspect browser console.
+
+11. Inspect network requests.
+
+12. Inspect backend logs.
+
+13. Inspect database behavior where relevant.
+
+14. Test permissions.
+
+15. Test loading states.
+
+16. Test empty states.
+
+17. Test error states.
+
+18. Test refresh behavior.
+
+19. Test repeated clicks.
+
+20. Test responsive layouts.
+
+21. Test keyboard navigation.
+
+22. Check visual consistency against the Nexus design system.
+
+23. Check that no old functionality was accidentally removed.
+
+24. Check that no duplicated state or logic was introduced.
+
+25. Check that no temporary/hardcoded solution was introduced.
+
+26. Check for dead code.
+
+27. Check for unnecessary dependencies.
+
+28. Check for performance regressions.
+
+29. Check for accessibility regressions.
+
+30. Compare the implementation with the original requirements.
+
+==================================================
+SELF-CRITIQUE
+==================================================
+
+Answer:
+
+What did I implement correctly?
+
+What did I implement poorly?
+
+What did I accidentally break?
+
+What edge cases did I miss?
+
+What architectural problems did I introduce?
+
+What UI inconsistencies remain?
+
+What should be improved before moving on?
+
+==================================================
+DECISION
+==================================================
+
+Assign:
+
+PASS
+or
+FAIL
+
+PASS ONLY IF:
+
+build passes
+typecheck passes
+lint passes
+tests pass
+manual testing passes
+no critical regressions
+visual consistency passes
+responsive behavior passes
+accessibility is acceptable
+architecture remains sound
+
+If FAIL:
+
+DO NOT MOVE TO THE NEXT PHASE.
+
+Fix every issue that caused the failure.
+
+Then repeat this entire verification process.
+
+Only after PASS may the next phase begin.
+'''
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Build PROMPT
+'''
+You are the lead product engineer, senior frontend engineer, UX designer, systems architect, QA engineer, and code reviewer for Nexus Workspace.
+
+Your job is NOT simply to make the application "look better".
+
+Your job is to transform the existing Nexus Workspace into a polished, production-quality collaborative workspace that feels capable of competing with modern products such as Notion, Linear, Slack, ClickUp, Figma, and similar professional workspace products.
+
+IMPORTANT:
+
+DO NOT blindly rewrite the application.
+
+DO NOT start modifying files immediately.
+
+DO NOT assume the existing implementation is correct.
+
+DO NOT add features just because they sound impressive.
+
+DO NOT remove existing functionality without first understanding why it exists.
+
+DO NOT sacrifice working functionality for visual improvements.
+
+DO NOT proceed to the next phase if the current phase is incomplete.
+
+The most important requirement of this entire task is:
+
+EVERY PHASE MUST END WITH A STRICT VERIFICATION AND REGRESSION CHECK.
+
+You must inspect your own work critically after every phase and fix problems before continuing.
+
+==================================================
+1. FIRST: UNDERSTAND THE EXISTING SYSTEM
+==================================================
+
+Before changing ANY code, inspect the entire repository.
+
+Inspect:
+
+- monorepo structure
+- apps
+- packages
+- frontend architecture
+- backend architecture
+- database schema
+- Prisma models
+- API routes
+- authentication
+- authorization / RBAC
+- workspace model
+- document model
+- folder model
+- trash / soft delete logic
+- task system
+- chat system
+- AI system
+- real-time collaboration
+- Socket.io
+- Yjs
+- Tiptap
+- React Flow
+- Zustand stores
+- TanStack Query usage
+- routing
+- component hierarchy
+- reusable UI components
+- design tokens
+- CSS/Tailwind configuration
+- state ownership
+- persistence mechanisms
+- error handling
+- loading states
+- optimistic updates
+- cache invalidation
+- websocket lifecycle
+- database relationships
+- file upload/storage
+- notifications
+- team management
+- permissions
+- workspace switching
+- search
+- modal architecture
+- side panels
+- responsive behavior
+
+Also inspect the existing documentation and README.
+
+The repository currently describes Nexus Workspace as a unified productivity platform combining real-time rich text editing, AI, infinite canvases, team communication, workspace drive, RBAC, and cloud persistence. The architecture already uses React 19, TypeScript, Vite, Zustand, TanStack Query, Tailwind, Framer Motion, Tiptap, React Flow, Socket.io, Yjs, Node/Express, PostgreSQL/Prisma, Supabase storage, and AI APIs.
+
+Treat these as the existing architectural baseline.
+
+DO NOT replace the architecture simply because another architecture looks fashionable.
+
+First determine what is already correct.
+
+==================================================
+2. RUN THE APPLICATION YOURSELF
+==================================================
+
+Start the application locally.
+
+Use the actual running application at:
+
+http://localhost:5173/
+
+Do NOT rely only on source code.
+
+Inspect the application as a real user.
+
+Navigate through EVERY available route and interaction.
+
+Inspect:
+
+- workspace selection
+- workspace dashboard
+- documents
+- folders
+- trash
+- chat
+- tasks/action items
+- AI
+- team management
+- notifications
+- workspace switching
+- document creation
+- folder creation
+- uploads
+- canvas
+- editing
+- search
+- menus
+- modals
+- side panels
+- dropdowns
+- navigation
+- logout
+- permissions
+- empty states
+- loading states
+- error states
+
+Use the application interactively.
+
+Do not assume a feature works because the UI exists.
+
+Verify it.
+
+==================================================
+3. CREATE A BASELINE BEFORE MODIFYING ANYTHING
+==================================================
+
+Before making changes, create a baseline report.
+
+Create:
+
+docs/UX_BASELINE.md
+docs/SYSTEM_BASELINE.md
+docs/IMPLEMENTATION_ROADMAP.md
+
+These documents must contain:
+
+A. Current functionality
+
+B. Current architecture
+
+C. Current UI architecture
+
+D. Known bugs
+
+E. UX problems
+
+F. Performance concerns
+
+G. Accessibility concerns
+
+H. Responsive design problems
+
+I. Security / authorization concerns
+
+J. State management problems
+
+K. Data consistency problems
+
+L. Architecture risks
+
+M. Technical debt
+
+N. Features that are useful
+
+O. Features that are redundant or unclear
+
+P. Features that should potentially be removed
+
+Q. Features worth adding
+
+Do not modify the product yet.
+
+==================================================
+4. USE REFERENCE PRODUCTS AS DESIGN RESEARCH
+==================================================
+
+Study high-quality products that solve similar problems.
+
+At minimum inspect:
+
+- Notion
+- Linear
+- Slack
+- ClickUp
+- Figma
+
+Use them only for learning.
+
+DO NOT COPY THEIR UI.
+
+DO NOT copy branding.
+
+DO NOT reproduce layouts pixel-for-pixel.
+
+Instead study:
+
+- information architecture
+- spacing
+- density
+- navigation
+- command palettes
+- sidebar behavior
+- panel systems
+- typography hierarchy
+- empty states
+- loading states
+- search
+- contextual actions
+- keyboard shortcuts
+- collaboration indicators
+- notifications
+- workspace switching
+- responsive behavior
+- animation
+- interaction feedback
+- design consistency
+
+The goal is:
+
+LEARN FROM THEM -> DESIGN A BETTER SYSTEM FOR NEXUS.
+
+The resulting UI must have its own visual identity.
+
+==================================================
+5. IMPORTANT PRODUCT PRINCIPLE
+==================================================
+
+Nexus should feel like one coherent workspace.
+
+Documents, tasks, chat, canvas, files, search, AI, and collaboration should not feel like unrelated mini-applications.
+
+Everything should share a common workspace context.
+
+A user should feel:
+
+"I am inside one workspace and these tools are different views of the same information."
+
+Avoid unnecessary duplication.
+
+==================================================
+6. CURRENT UI PROBLEMS YOU MUST INVESTIGATE
+==================================================
+
+The screenshots reveal several likely issues.
+
+You must verify each one against the actual implementation before changing anything.
+
+--------------------------------------------------
+A. VISUAL HIERARCHY
+--------------------------------------------------
+
+The left sidebar currently uses extremely prominent orange, purple, yellow, blue, and green action buttons.
+
+This makes the navigation hierarchy visually noisy.
+
+Evaluate whether these should become:
+
+- one primary Create button
+- a compact create menu
+- secondary actions
+- contextual actions
+
+The design should emphasize CONTENT rather than making five large colored buttons compete for attention.
+
+Do not remove functionality.
+
+Improve hierarchy.
+
+--------------------------------------------------
+B. EXCESSIVE EMPTY SPACE
+--------------------------------------------------
+
+Several screens leave a very large amount of empty black space.
+
+Investigate:
+
+- max-width
+- content grid
+- card sizing
+- responsive columns
+- dashboard composition
+- information density
+
+Use the available screen intelligently.
+
+Do not simply stretch components to fill space.
+
+Use useful content such as:
+
+- recent activity
+- recent documents
+- favorites
+- tasks
+- activity
+- workspace summary
+- quick actions
+- collaborators
+
+Only add these if they genuinely improve the product.
+
+--------------------------------------------------
+C. DOCUMENT GRID
+--------------------------------------------------
+
+Document and folder cards currently feel somewhat disconnected.
+
+Create a consistent visual system for:
+
+- documents
+- folders
+- canvases
+- files
+
+Define consistent:
+
+- card dimensions
+- icon treatment
+- metadata hierarchy
+- hover state
+- selection state
+- menu placement
+- timestamps
+- owner/avatar
+- color semantics
+
+Folder/document/canvas cards must feel like members of the same component family.
+
+--------------------------------------------------
+D. TRASH BUG
+--------------------------------------------------
+
+This is an IMPORTANT functional issue.
+
+The Trash page currently appears to allow creation of:
+
+- folders
+- documents
+- uploads
+- potentially other workspace actions
+
+That is conceptually incorrect.
+
+Trash should be a management/recovery context.
+
+In Trash:
+
+DO NOT expose "New Folder".
+
+DO NOT expose "New Text Document".
+
+DO NOT expose "New Canvas".
+
+DO NOT expose unrelated creation actions.
+
+Trash should instead focus on:
+
+- restore
+- permanently delete
+- empty trash
+- search
+- filtering
+- deletion metadata
+- recovery information
+
+Verify the permission and action model too.
+
+Do not merely hide buttons.
+
+The underlying logic must also prevent invalid operations in Trash context.
+
+--------------------------------------------------
+E. MULTI-PANEL WORKSPACE
+--------------------------------------------------
+
+The current Chat + Tasks + AI layout can become cramped and visually fragmented.
+
+Redesign this as an intentional workspace panel system.
+
+Consider:
+
+- resizable panels
+- collapsible panels
+- persistent layout state
+- tabbed panels
+- contextual sidebars
+- panel memory
+
+Do not create four permanent equal-width columns if they reduce usability.
+
+The workspace should adapt intelligently.
+
+--------------------------------------------------
+F. AI EXPERIENCE
+--------------------------------------------------
+
+Do not make AI feel like an unrelated chatbot.
+
+Nexus AI should understand the current context.
+
+Examples:
+
+"Summarize this document."
+
+"Extract action items from this meeting note."
+
+"Create tasks from this section."
+
+"Explain this document."
+
+"Search my workspace for projects related to X."
+
+"Compare these two documents."
+
+"Turn this canvas into a project plan."
+
+AI should become contextual.
+
+Do not build unnecessary AI features merely for novelty.
+
+--------------------------------------------------
+G. FLOATING RIGHT-SIDE TOOL RAIL
+--------------------------------------------------
+
+The current floating vertical icon rail appears visually disconnected from the application.
+
+Determine what it actually represents.
+
+If it is part of the product, redesign it so it feels intentional.
+
+If it duplicates existing navigation, remove or consolidate it.
+
+Do not preserve redundant UI just because it already exists.
+
+--------------------------------------------------
+H. NOTIFICATIONS
+--------------------------------------------------
+
+The notifications UI currently looks like an isolated popover.
+
+Design a proper notification experience.
+
+Consider:
+
+- unread state
+- timestamps
+- grouping
+- notification types
+- navigation to source
+- mark read
+- clear/read all
+- contextual actions
+
+Notifications should lead back to meaningful workspace objects.
+
+--------------------------------------------------
+I. WORKSPACE HOME
+--------------------------------------------------
+
+The workspace selection screen currently contains large empty areas.
+
+Design this as a useful workspace dashboard.
+
+Possible content:
+
+- recent workspaces
+- recent documents
+- recent activity
+- favorites
+- pending tasks
+- mentions
+- quick create
+- workspace members
+- last opened item
+
+Only include features that improve usability.
+
+Do not turn the dashboard into a meaningless analytics page.
+
+--------------------------------------------------
+J. TYPOGRAPHY
+--------------------------------------------------
+
+Create a strong typography hierarchy.
+
+Clearly differentiate:
+
+- page title
+- section title
+- body
+- metadata
+- helper text
+- labels
+- status
+- timestamps
+
+Avoid too many font sizes.
+
+Choose a compact, professional hierarchy.
+
+--------------------------------------------------
+K. COLORS
+--------------------------------------------------
+
+The current UI uses several strong accent colors simultaneously.
+
+Create a proper design token system.
+
+Define semantic colors for:
+
+- primary
+- secondary
+- success
+- warning
+- danger
+- info
+- document
+- canvas
+- task
+- AI
+- unread
+- active
+- disabled
+
+Do not allow each component to invent arbitrary colors.
+
+The product should feel visually unified.
+
+--------------------------------------------------
+L. BORDERS
+--------------------------------------------------
+
+The UI currently relies heavily on bright borders.
+
+Reduce unnecessary visual noise.
+
+Use:
+
+- subtle borders
+- elevation
+- background contrast
+- hover state
+- spacing
+
+rather than outlining everything strongly.
+
+--------------------------------------------------
+M. MODALS
+--------------------------------------------------
+
+Review every modal.
+
+Each modal should have:
+
+- clear title
+- clear purpose
+- correct information hierarchy
+- primary action
+- secondary action
+- close behavior
+- escape key support
+- click-outside behavior when appropriate
+- loading state
+- validation
+- error handling
+
+--------------------------------------------------
+N. RESPONSIVE DESIGN
+--------------------------------------------------
+
+Do not only optimize for the screenshot resolution.
+
+Test:
+
+- 1440p desktop
+- 1280 desktop
+- laptop
+- tablet
+- mobile
+
+The application is a workspace product, so responsiveness must be intentional.
+
+Sidebar behavior must change appropriately.
+
+Multi-panels must collapse intelligently.
+
+Cards must reflow.
+
+Modals must fit small screens.
+
+--------------------------------------------------
+O. ACCESSIBILITY
+--------------------------------------------------
+
+Audit:
+
+- keyboard navigation
+- focus indicators
+- color contrast
+- ARIA labels
+- buttons
+- dialogs
+- menus
+- forms
+- keyboard shortcuts
+- screen-reader semantics
+
+Do not sacrifice accessibility for aesthetics.
+
+==================================================
+7. SYSTEM DESIGN AUDIT
+==================================================
+
+This is extremely important.
+
+Before large architectural changes, inspect whether the current system has:
+
+- duplicated state
+- conflicting sources of truth
+- invalid client-side authorization assumptions
+- unsafe destructive operations
+- weak separation of concerns
+- excessive coupling
+- inappropriate global state
+- redundant API requests
+- stale cache problems
+- websocket lifecycle leaks
+- race conditions
+- inconsistent optimistic updates
+- incorrect soft-delete semantics
+- incorrect trash semantics
+- missing indexes
+- inefficient database queries
+- missing transactions
+- weak error boundaries
+- inconsistent API contracts
+- poor validation
+- inconsistent permission enforcement
+- duplicated business logic
+- frontend-only permission checks
+- incorrect real-time synchronization
+- persistence bugs
+
+Do not assume the architecture is correct because it uses modern libraries.
+
+==================================================
+8. SINGLE SOURCE OF TRUTH
+==================================================
+
+Explicitly determine ownership for:
+
+Workspace
+User
+Document
+Folder
+Trash item
+Task
+Message
+Notification
+AI context
+Presence
+Permissions
+
+For every major entity document:
+
+- where its canonical state lives
+- how it is fetched
+- how it is mutated
+- how it is cached
+- how it is synchronized
+- how it is persisted
+- who is allowed to mutate it
+
+Avoid having multiple unrelated sources of truth.
+
+==================================================
+9. TRASH / SOFT DELETE DESIGN
+==================================================
+
+Audit the deletion model carefully.
+
+A robust design should distinguish:
+
+ACTIVE
+TRASHED
+PERMANENTLY_DELETED
+
+Determine:
+
+- how deletion is represented
+- who can delete
+- what happens to children
+- whether folders recursively trash contents
+- how restore works
+- whether restore preserves hierarchy
+- what happens if the parent folder no longer exists
+- how permanent deletion works
+- whether trashed items remain searchable
+- whether realtime events are emitted
+- whether permissions are rechecked
+
+Then implement the correct behavior.
+
+==================================================
+10. AUTHORIZATION
+==================================================
+
+Never rely only on frontend visibility.
+
+For:
+
+- document creation
+- folder creation
+- deletion
+- restoration
+- invitations
+- role changes
+- permanent deletion
+- AI actions
+- uploads
+
+verify authorization server-side.
+
+The UI should reflect permissions, but the backend must enforce them.
+
+==================================================
+11. PHASED EXECUTION
+==================================================
+
+Do NOT attempt the entire redesign at once.
+
+Use these phases.
+
+PHASE 0
+Baseline + architecture audit
+
+PHASE 1
+Design system + visual language
+
+PHASE 2
+Application shell + navigation
+
+PHASE 3
+Workspace dashboard
+
+PHASE 4
+Documents / folders / files
+
+PHASE 5
+Trash / deletion / recovery
+
+PHASE 6
+Workspace Chat
+
+PHASE 7
+Tasks / Action Items
+
+PHASE 8
+Workspace AI
+
+PHASE 9
+Team / permissions
+
+PHASE 10
+Notifications / activity
+
+PHASE 11
+Real-time collaboration
+
+PHASE 12
+Responsive design
+
+PHASE 13
+Accessibility + keyboard UX
+
+PHASE 14
+Performance + architecture hardening
+
+PHASE 15
+Final end-to-end audit
+
+==================================================
+12. STRICT PHASE COMPLETION PROTOCOL
+==================================================
+
+THIS IS NON-NEGOTIABLE.
+
+At the end of EVERY phase you must execute the following process.
+
+STEP 1
+Review every modified file.
+
+STEP 2
+Run type checking.
+
+STEP 3
+Run linting.
+
+STEP 4
+Run tests.
+
+STEP 5
+Run build.
+
+STEP 6
+Start the application.
+
+STEP 7
+Interact with the changed feature manually.
+
+STEP 8
+Test important flows that existed before the phase.
+
+STEP 9
+Check browser console.
+
+STEP 10
+Check network errors.
+
+STEP 11
+Check server errors.
+
+STEP 12
+Check database errors.
+
+STEP 13
+Check responsive behavior.
+
+STEP 14
+Check visual consistency.
+
+STEP 15
+Check accessibility.
+
+STEP 16
+Check that no unrelated functionality regressed.
+
+STEP 17
+Compare the implementation with the design objectives.
+
+STEP 18
+Critically review your own implementation.
+
+Ask yourself:
+
+"What did I accidentally break?"
+
+"What did I forget?"
+
+"Did I introduce duplicated logic?"
+
+"Did I violate the design system?"
+
+"Did I create inconsistent UI?"
+
+"Did I solve the root problem or merely hide it?"
+
+"Did I improve the user experience or simply move elements around?"
+
+"Did I make the architecture better or worse?"
+
+STEP 19
+
+Create/update:
+
+docs/PHASE_X_VERIFICATION.md
+
+This document must contain:
+
+- changes made
+- files changed
+- tests executed
+- bugs found
+- bugs fixed
+- known remaining issues
+- architecture impact
+- UX impact
+- regression checks
+- final status
+
+==================================================
+13. PHASE GATE
+==================================================
+
+You may NOT proceed to the next phase unless:
+
+BUILD = PASS
+TYPECHECK = PASS
+LINT = PASS
+TESTS = PASS
+MANUAL SMOKE TEST = PASS
+NO CRITICAL REGRESSIONS = PASS
+VISUAL AUDIT = PASS
+RESPONSIVE AUDIT = PASS
+ACCESSIBILITY AUDIT = PASS
+ARCHITECTURE REVIEW = PASS
+
+If any item fails:
+
+STOP.
+
+Fix it.
+
+Re-run the entire verification process.
+
+Do NOT simply mark it as a known issue unless it genuinely cannot be resolved safely within the phase.
+
+==================================================
+14. SELF-CRITIQUE REQUIREMENT
+==================================================
+
+After every phase, pretend you are an external senior engineer reviewing the pull request.
+
+Be harsh.
+
+Look for:
+
+- shortcuts
+- hacks
+- duplicated components
+- unnecessary abstractions
+- dead code
+- inconsistent naming
+- poor error handling
+- bad state ownership
+- accessibility issues
+- UI inconsistencies
+- brittle CSS
+- hidden bugs
+- incorrect empty states
+- incorrect permissions
+- visual regressions
+- responsive failures
+
+Fix these before proceeding.
+
+==================================================
+15. DO NOT OVERENGINEER
+==================================================
+
+Do not introduce a new dependency unless there is a clear reason.
+
+Do not replace working infrastructure simply because another library exists.
+
+Do not convert the project into microservices unless there is a demonstrated need.
+
+Do not introduce abstractions that make the code harder to understand.
+
+Prefer:
+
+simple
+maintainable
+typed
+tested
+modular
+observable
+predictable
+
+==================================================
+16. FEATURE PRIORITIZATION
+==================================================
+
+Prioritize improvements using:
+
+P0 = broken / incorrect / dangerous
+P1 = major usability problem
+P2 = important product improvement
+P3 = polish
+
+Never work on P3 while a P0 issue remains.
+
+==================================================
+17. FEATURES TO EVALUATE FOR REMOVAL
+==================================================
+
+Review these carefully:
+
+"Follow Me"
+floating right-side utility rail
+redundant AI navigation
+redundant workspace actions
+duplicate workspace entry points
+unnecessary dashboard decoration
+
+Do not automatically remove them.
+
+Decide based on actual product value.
+
+For every feature proposed for removal, document:
+
+- what it currently does
+- why it is weak
+- whether it overlaps another capability
+- what users would lose
+- replacement behavior if needed
+
+==================================================
+18. FEATURES WORTH CONSIDERING
+==================================================
+
+Consider adding only if they fit the product:
+
+Command Palette / Cmd+K
+Favorites
+Pinned documents
+Recent activity
+Recent files
+Workspace search
+Global search
+Contextual AI actions
+Document mentions
+Task extraction
+Templates
+Presence indicators
+Unread indicators
+Keyboard shortcuts
+Resizable panels
+Saved panel layouts
+Better empty states
+Undo/redo feedback
+Activity history
+Document version history
+
+Do not add all of them automatically.
+
+Prioritize what actually improves Nexus.
+
+==================================================
+19. COMMAND PALETTE
+==================================================
+
+A command palette should be strongly considered.
+
+It should eventually allow:
+
+Create document
+Create folder
+Create canvas
+Search workspace
+Open document
+Open task
+Open chat
+Ask AI
+Invite member
+Open settings
+Switch workspace
+Go to trash
+
+Use keyboard shortcut:
+
+Cmd/Ctrl + K
+
+==================================================
+20. DESIGN SYSTEM
+==================================================
+
+Create centralized design primitives rather than styling every screen independently.
+
+Define reusable components for:
+
+Button
+IconButton
+Input
+SearchInput
+Card
+DocumentCard
+FolderCard
+Dialog
+Dropdown
+Tooltip
+Badge
+Avatar
+Tabs
+Panel
+Sidebar
+CommandMenu
+Toast
+EmptyState
+Skeleton
+ContextMenu
+
+Define design tokens for:
+
+spacing
+radius
+typography
+colors
+borders
+shadows
+motion
+z-index
+panel widths
+
+Do not allow arbitrary one-off styling to proliferate.
+
+==================================================
+21. VISUAL QUALITY BAR
+==================================================
+
+The final application should feel:
+
+premium
+calm
+professional
+dense but not cramped
+modern
+coherent
+fast
+intentional
+
+Avoid:
+
+excessive gradients
+excessive glassmorphism
+neon colors everywhere
+giant empty spaces
+overly rounded cards
+unnecessary shadows
+too many borders
+random animations
+visual noise
+
+The design should be inspired by the maturity of products like Notion, Linear, Slack, and Figma while remaining original.
+
+==================================================
+22. PERFORMANCE
+==================================================
+
+Audit:
+
+unnecessary rerenders
+large component trees
+expensive selectors
+duplicate API requests
+unnecessary websocket subscriptions
+memory leaks
+large bundle imports
+unoptimized images
+excessive animations
+query invalidation
+pagination
+virtualization where needed
+
+Do not optimize prematurely.
+
+Measure before making major performance claims.
+
+==================================================
+23. FINAL SYSTEM DESIGN DOCUMENT
+==================================================
+
+Create:
+
+docs/NEXUS_SYSTEM_DESIGN.md
+
+This must document the final architecture.
+
+Include:
+
+1. System overview
+
+2. Architecture diagram
+
+3. Frontend architecture
+
+4. Backend architecture
+
+5. Database architecture
+
+6. Authentication
+
+7. Authorization / RBAC
+
+8. Document lifecycle
+
+9. Folder lifecycle
+
+10. Trash lifecycle
+
+11. Task lifecycle
+
+12. Chat lifecycle
+
+13. AI architecture
+
+14. Real-time architecture
+
+15. WebSocket architecture
+
+16. Yjs collaboration architecture
+
+17. Storage architecture
+
+18. Notification architecture
+
+19. Search architecture
+
+20. State management
+
+21. Server-state management
+
+22. Cache strategy
+
+23. Error handling
+
+24. Logging
+
+25. Security
+
+26. Data consistency
+
+27. Concurrency
+
+28. Transactions
+
+29. Performance
+
+30. Scalability
+
+31. Failure scenarios
+
+32. Recovery strategies
+
+33. Key architectural decisions
+
+34. Alternatives considered
+
+35. Why each technology was selected
+
+36. Known limitations
+
+For every major decision document:
+
+DECISION
+REASON
+ALTERNATIVES
+TRADE-OFF
+WHY THIS WAS CHOSEN
+
+==================================================
+24. FINAL UX DOCUMENT
+==================================================
+
+Create:
+
+docs/NEXUS_UX_GUIDELINES.md
+
+Document:
+
+- spacing
+- typography
+- colors
+- button hierarchy
+- cards
+- navigation
+- sidebars
+- modals
+- notifications
+- empty states
+- loading states
+- errors
+- search
+- command palette
+- responsive behavior
+- keyboard interactions
+- animations
+
+This becomes the permanent design reference for future development.
+
+==================================================
+25. FINAL QA
+==================================================
+
+At the end of ALL phases perform a complete end-to-end audit.
+
+Test:
+
+LOGIN
+WORKSPACE SELECTION
+WORKSPACE CREATION
+DOCUMENT CREATION
+DOCUMENT EDITING
+DOCUMENT DELETION
+DOCUMENT RESTORATION
+FOLDER CREATION
+FOLDER NAVIGATION
+FOLDER DELETION
+TRASH
+PERMANENT DELETE
+UPLOAD
+SEARCH
+CHAT
+TASKS
+AI
+TEAM MANAGEMENT
+ROLE CHANGES
+NOTIFICATIONS
+REAL-TIME UPDATES
+WORKSPACE SWITCHING
+LOGOUT
+
+Also test invalid scenarios:
+
+unauthorized user
+viewer attempting edits
+deleted document
+deleted folder
+missing parent
+network failure
+server failure
+expired session
+duplicate action
+rapid repeated clicks
+two simultaneous edits
+refresh during save
+refresh during realtime connection
+mobile layout
+
+==================================================
+26. FINAL STOP CONDITION
+==================================================
+
+Do not declare success because:
+
+"The UI looks better."
+
+Success means:
+
+THE SYSTEM IS CORRECT.
+THE UI IS COHERENT.
+THE FUNCTIONALITY WORKS.
+THE ARCHITECTURE IS DOCUMENTED.
+THE IMPORTANT EDGE CASES WORK.
+THE EXISTING FEATURES HAVE NOT REGRESSED.
+THE DESIGN SYSTEM IS CONSISTENT.
+THE APP WORKS RESPONSIVELY.
+THE APPLICATION PASSES FINAL QA.
+
+==================================================
+27. IMPORTANT BEHAVIOR DURING THE ENTIRE TASK
+==================================================
+
+When uncertain:
+
+STOP AND INSPECT.
+
+Do not guess.
+
+When you discover an architectural issue:
+
+DOCUMENT IT.
+
+When you discover a bug unrelated to the current phase:
+
+RECORD IT and decide whether it is P0/P1/P2/P3.
+
+When a change may affect another feature:
+
+TRACE THE DEPENDENCY before modifying it.
+
+When you modify a shared component:
+
+AUDIT EVERY SCREEN USING IT.
+
+When you modify global state:
+
+AUDIT EVERY FEATURE USING THAT STATE.
+
+When you modify database behavior:
+
+AUDIT EVERY API and UI flow depending on it.
+
+When you modify permissions:
+
+TEST EVERY ROLE.
+
+When you modify realtime behavior:
+
+TEST MULTIPLE CLIENTS.
+
+When you modify responsive behavior:
+
+TEST MULTIPLE BREAKPOINTS.
+
+==================================================
+28. MOST IMPORTANT RULE
+==================================================
+
+DO NOT OPTIMIZE FOR FINISHING THE TASK.
+
+OPTIMIZE FOR BUILDING THE BEST VERSION OF NEXUS.
+
+WORK SLOWLY.
+
+INSPECT.
+
+IMPLEMENT.
+
+TEST.
+
+CRITIQUE.
+
+FIX.
+
+VERIFY.
+
+ONLY THEN CONTINUE.
+
+Start with PHASE 0.
+
+Do not modify the product until the baseline audit and roadmap are complete.
+'''
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+verification prompts
+'''
+The Phase 0 audit looks good, but DO NOT start implementation yet.
+
+Before beginning Phase 1, perform one final Phase-0 validation pass and resolve the following requirements.
+
+==================================================
+1. VERIFY THE BASELINE AGAINST THE ACTUAL CODE
+==================================================
+
+Do not rely on assumptions in the baseline documents.
+
+Inspect the repository and verify:
+
+- actual server-state library in use (SWR, TanStack Query, or both)
+- actual state-management boundaries
+- actual routing structure
+- actual authentication flow
+- actual authorization flow
+- actual database deletion behavior
+- actual folder/document relationships
+- actual realtime synchronization flow
+- actual Yjs persistence flow
+- actual Socket.io lifecycle
+- actual notification implementation
+- actual AI context handling
+
+If the baseline document says something different from the code, correct the baseline document before proceeding.
+
+Do not carry assumptions into later phases.
+
+==================================================
+2. CREATE A PHASE-0 ISSUE REGISTER
+==================================================
+
+Create:
+
+docs/PHASE_0_ISSUE_REGISTER.md
+
+Classify every discovered issue as:
+
+P0 = security / data integrity / broken core functionality
+P1 = major UX or architectural issue
+P2 = important improvement
+P3 = polish
+
+For every issue record:
+
+- Issue
+- Severity
+- Location
+- Root cause
+- User impact
+- Architectural impact
+- Recommended solution
+- Phase where it will be fixed
+
+Do not fix everything now.
+
+This is the source of truth for the roadmap.
+
+==================================================
+3. ESTABLISH NON-NEGOTIABLE PRODUCT PRINCIPLES
+==================================================
+
+Create:
+
+docs/NEXUS_PRODUCT_PRINCIPLES.md
+
+Define approximately 8-12 principles.
+
+Examples:
+
+1. Nexus is one workspace, not a collection of disconnected tools.
+2. Content is more important than navigation chrome.
+3. Every interaction should have a clear purpose.
+4. Contextual actions are preferred over permanent controls.
+5. The UI should be calm, dense, and professional.
+6. AI should be contextual rather than a separate novelty feature.
+7. Backend authorization is authoritative.
+8. There must be a clear source of truth for every entity.
+9. Existing functionality must not regress during redesign.
+10. Simplicity is preferred over feature accumulation.
+
+Every future phase must be evaluated against these principles.
+
+==================================================
+4. RESOLVE THE DESIGN DIRECTION BEFORE CODING
+==================================================
+
+For the new visual language use:
+
+Dark-first, premium, calm, professional, minimal.
+
+Use the quality bar of:
+
+Linear
+Notion
+Figma
+Slack
+
+as inspiration for interaction quality.
+
+Do NOT copy their UI.
+
+Do NOT imitate branding.
+
+Do NOT introduce excessive:
+
+- gradients
+- neon colors
+- glassmorphism
+- huge rounded cards
+- heavy shadows
+- bright borders
+- decorative animations
+
+The design should feel original to Nexus.
+
+==================================================
+5. COLOR PALETTE
+==================================================
+
+Do not ask me again for a color preference.
+
+Use a restrained neutral-first palette.
+
+Base:
+
+near-black / graphite backgrounds
+subtle elevated surfaces
+soft neutral borders
+high-contrast primary text
+muted secondary text
+
+Accent colors should be semantic and limited.
+
+Suggested semantic mapping:
+
+Primary = cool blue/indigo
+Success = green
+Warning = amber
+Danger = red
+AI = violet
+Info = blue
+
+Document/content accents should remain subtle.
+
+The current orange/purple/yellow/blue/green sidebar-button treatment should NOT remain in its current form.
+
+==================================================
+6. TYPOGRAPHY
+==================================================
+
+Keep Geist unless repository inspection proves that another choice is significantly better.
+
+Do not introduce another font merely for visual novelty.
+
+Create a clear typography scale for:
+
+- page title
+- section title
+- body
+- metadata
+- captions
+- labels
+- buttons
+- navigation
+
+Keep the hierarchy compact and professional.
+
+==================================================
+7. DESIGN TOKENS
+==================================================
+
+Before modifying individual pages, establish reusable tokens for:
+
+colors
+spacing
+radius
+typography
+borders
+shadows
+motion
+z-index
+breakpoints
+panel widths
+
+These tokens must become the foundation for every subsequent phase.
+
+Do not allow future phases to introduce arbitrary one-off visual values unless there is a documented reason.
+
+==================================================
+8. COMPONENT FOUNDATION
+==================================================
+
+Before redesigning pages, audit the existing UI primitives.
+
+Decide what should be:
+
+- preserved
+- refactored
+- extended
+- replaced
+
+Prioritize reusable primitives:
+
+Button
+IconButton
+Input
+SearchInput
+Card
+Dialog
+Dropdown
+Menu
+Tooltip
+Badge
+Avatar
+Tabs
+Panel
+Sidebar
+EmptyState
+Skeleton
+Toast
+
+Do not create duplicate versions of the same primitive.
+
+If shadcn components are useful, preserve and customize them.
+
+Do NOT replace shadcn just because this is a redesign.
+
+Reuse established accessible primitives whenever possible.
+
+==================================================
+9. IMPORTANT: PHASE 1 MUST NOT CHANGE PRODUCT ARCHITECTURE
+==================================================
+
+Phase 1 is primarily:
+
+DESIGN SYSTEM + VISUAL LANGUAGE.
+
+Do not use Phase 1 as an excuse to:
+
+- rewrite backend code
+- replace state management
+- change database schema
+- redesign realtime architecture
+- introduce large new dependencies
+- rewrite unrelated components
+
+Only make architectural changes when required to establish the design-system foundation.
+
+==================================================
+10. DEFINE BEFORE/AFTER SUCCESS CRITERIA
+==================================================
+
+Before implementing Phase 1, create:
+
+docs/PHASE_1_SUCCESS_CRITERIA.md
+
+Define measurable goals such as:
+
+- no arbitrary bright borders
+- consistent button hierarchy
+- consistent card treatment
+- consistent spacing
+- consistent typography
+- consistent icon sizing
+- consistent hover/focus states
+- consistent disabled/loading states
+- accessible focus indicators
+- no duplicated UI primitives
+- no major visual inconsistencies
+
+==================================================
+11. BUILD PHASE 1 AS A FOUNDATION
+==================================================
+
+Implement:
+
+1. design tokens
+2. typography hierarchy
+3. color system
+4. spacing system
+5. radius system
+6. border system
+7. shadows/elevation
+8. motion rules
+9. reusable UI primitives
+
+Then migrate representative existing screens to those primitives.
+
+Do not redesign every screen in Phase 1.
+
+Use enough representative components to prove the system works.
+
+==================================================
+12. VISUAL REGRESSION REQUIREMENT
+==================================================
+
+After Phase 1:
+
+Review at minimum:
+
+- workspace dashboard
+- documents page
+- trash page
+- one modal
+- one side panel
+
+The goal is to ensure the new design system actually works across different UI contexts.
+
+==================================================
+13. STRICT PHASE GATE
+==================================================
+
+Phase 1 is NOT complete until:
+
+PASS:
+- typecheck
+- lint
+- build
+- tests
+- manual smoke test
+- visual audit
+- responsive audit
+- accessibility audit
+- regression audit
+
+AND:
+
+No P0 issue exists.
+
+No newly introduced P1 issue exists.
+
+Every modified shared component has been checked across all major consumers.
+
+Create:
+
+docs/PHASE_1_VERIFICATION.md
+
+Only after all checks pass may Phase 2 begin.
+
+==================================================
+14. MOST IMPORTANT RULE
+==================================================
+
+Do not ask me to repeatedly approve obvious engineering decisions.
+
+Use professional judgment for implementation details.
+
+Only stop and ask for approval when the decision would materially change:
+
+- product direction
+- architecture
+- data model
+- security model
+- major feature scope
+
+Otherwise:
+
+inspect -> decide -> implement -> verify -> document.
+
+Do not proceed to Phase 2 automatically after Phase 1.
+
+Stop after Phase 1 verification and present:
+
+1. what changed
+2. what was tested
+3. what remains
+4. whether the phase passed
+5. screenshots / visual evidence where useful
+
+Then wait for my instruction.
+'''

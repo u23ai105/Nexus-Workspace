@@ -3,16 +3,8 @@ import { prisma } from '@nexus/database';
 import { AuthRequest } from '../middlewares/auth.middleware';
 import { z } from 'zod';
 
-// Helper: get user's role in a workspace
-const getUserRole = async (userId: string, workspaceId: string): Promise<string | null> => {
-  const workspace = await prisma.workspace.findUnique({ where: { id: workspaceId } });
-  if (workspace?.ownerId === userId) return 'OWNER';
-  const member = await prisma.workspaceMember.findUnique({
-    where: { userId_workspaceId: { userId, workspaceId } }
-  });
-  if (member && member.status === 'ACCEPTED') return member.role;
-  return null;
-};
+import { getUserRole } from '../utils/rbac';
+
 
 const createDocumentSchema = z.object({
   workspaceId: z.string().min(1, "Workspace ID is required"),

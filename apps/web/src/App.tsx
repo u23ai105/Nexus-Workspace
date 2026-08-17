@@ -33,6 +33,7 @@ export default function App() {
   const [activeDmUser, setActiveDmUser] = useState<any>(null)
   const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(() => localStorage.getItem('nexus_workspace_id'))
   const [selectedDoc, setSelectedDoc] = useState<DocumentItem | null>(null)
+  const [globalSearchQuery, setGlobalSearchQuery] = useState('')
   const [userRole, setUserRole] = useState<string>('OWNER')
   const [isRegister, setIsRegister] = useState(false)
   const [name, setName] = useState('')
@@ -43,6 +44,19 @@ export default function App() {
   const [loading, setLoading] = useState(false)
   const [successMsg, setSuccessMsg] = useState<string | null>(null)
   const [globalSocket, setGlobalSocket] = useState<Socket | null>(null)
+
+  // Global search shortcut
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        const searchInput = document.getElementById('global-search-input');
+        if (searchInput) searchInput.focus();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // Sync token changes to localStorage
   useEffect(() => {
@@ -266,6 +280,7 @@ export default function App() {
                 setSelectedDoc(null)
               }}
               className="w-8 h-8 rounded-lg bg-foreground flex items-center justify-center hover:scale-105 transition-transform"
+              aria-label="Home"
             >
               <span className="font-bold text-background text-base">N</span>
             </button>
@@ -299,20 +314,45 @@ export default function App() {
                   </select>
                 </>
               )}
+              {selectedDoc && (
+                <>
+                  <span className="text-muted-foreground">/</span>
+                  <span className="text-sm font-medium text-foreground truncate max-w-[200px] sm:max-w-[300px]">
+                    {selectedDoc.title}
+                  </span>
+                </>
+              )}
             </div>
           </div>
 
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-3 sm:space-x-4">
+            {/* Global Search Mock */}
+            {activeWorkspace && !selectedDoc && (
+              <div className="hidden md:flex relative w-full max-w-64 min-w-[120px] items-center">
+                <svg className="absolute left-3 w-4 h-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <input
+                  id="global-search-input"
+                  type="text"
+                  value={globalSearchQuery}
+                  onChange={(e) => setGlobalSearchQuery(e.target.value)}
+                  placeholder="Search... (Ctrl+K)"
+                  className="w-full bg-muted/40 border border-border/50 rounded-full pl-9 pr-4 py-1.5 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary transition-all"
+                />
+              </div>
+            )}
             <button
               onClick={() => setIsGlobalChatOpen(!isGlobalChatOpen)}
               className={`p-2 rounded-full transition-colors relative ${
                 isGlobalChatOpen 
-                  ? 'bg-indigo-500/20 text-indigo-400' 
-                  : 'text-muted-foreground hover:bg-muted/80 hover:text-foreground'
+                  ? 'bg-primary/20 text-primary' 
+                  : 'text-muted-foreground hover:bg-muted/70 hover:text-foreground'
               }`}
               title="Global Messages"
+              aria-label="Global Messages"
             >
-              <MessageCircle size={20} />
+              <MessageCircle size={18} />
             </button>
             
             <NotificationBell 
@@ -328,19 +368,23 @@ export default function App() {
               }}
             />
             
-            <div className="flex items-center space-x-2 bg-muted/40 border border-border/50 px-3 py-1.5 rounded-full">
+            <div className="flex items-center space-x-2 bg-muted/40 border border-border/50 px-3 py-1.5 rounded-full shrink-0">
               <span 
-                className="w-2.5 h-2.5 rounded-full border border-background" 
+                className="w-2.5 h-2.5 rounded-full border border-background shrink-0" 
                 style={{ backgroundColor: user.color }} 
               />
-              <span className="text-xs font-medium text-foreground">{user.name}</span>
+              <span className="hidden sm:inline text-xs font-medium text-foreground truncate max-w-[100px]">{user.name}</span>
             </div>
 
             <button
               onClick={handleLogout}
-              className="text-xs bg-muted/40 hover:bg-tint-red/10 hover:text-tint-red text-muted-foreground border border-border/50 px-3 py-1.5 rounded-md transition-all duration-200"
+              className="text-xs bg-muted/40 hover:bg-tint-red/10 hover:text-tint-red text-muted-foreground border border-border/50 p-2 sm:px-3 sm:py-1.5 rounded-md transition-all duration-200 shrink-0 flex items-center"
+              title="Log Out"
             >
-              Log Out
+              <span className="hidden sm:inline">Log Out</span>
+              <svg className="w-4 h-4 sm:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
             </button>
           </div>
         </header>
@@ -366,17 +410,6 @@ export default function App() {
                 workspaceId={activeWorkspaceId || undefined}
                 userRole={userRole}
                 onBack={() => setSelectedDoc(null)}
-                onRename={(newTitle) => {
-                  setSelectedDoc((prev) => (prev ? { ...prev, title: newTitle } : null))
-                  fetch(`${BACKEND_URL}/api/documents/${selectedDoc.id}`, {
-                    method: 'PATCH',
-                    headers: {
-                      'Content-Type': 'application/json',
-                      Authorization: `Bearer ${jwt}`,
-                    },
-                    body: JSON.stringify({ title: newTitle }),
-                  }).catch(console.error)
-                }}
               />
             </Suspense>
           ) : activeWorkspaceId ? (
@@ -384,6 +417,7 @@ export default function App() {
               workspaceId={activeWorkspaceId}
               token={jwt}
               serverUrl={BACKEND_URL}
+              searchQuery={globalSearchQuery}
               onSelectDocument={(doc) => setSelectedDoc(doc)}
               onRoleChange={(role) => setUserRole(role)}
               currentUser={user}
