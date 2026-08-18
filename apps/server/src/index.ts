@@ -27,14 +27,7 @@ const PORT = process.env.PORT || 4000;
 // Security Middlewares
 app.use(helmet());
 app.use(cors({
-  origin: (origin, callback) => {
-    // Allow requests with no origin (e.g., server-to-server) or any localhost origin
-    if (!origin || /^http:\/\/localhost(:\d+)?$/.test(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error(`CORS not allowed for origin: ${origin}`));
-    }
-  },
+  origin: true,
   credentials: true,
 }));
 

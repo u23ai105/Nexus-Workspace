@@ -237,14 +237,7 @@ export const getIo = () => ioInstance;
 export const createSocketServer = (server: HttpServer) => {
   const io = new SocketIOServer(server, {
     cors: {
-      origin: (origin, callback) => {
-        // Allow any localhost origin (covers port fallbacks like 5175)
-        if (!origin || /^http:\/\/localhost(:\d+)?$/.test(origin)) {
-          callback(null, true);
-        } else {
-          callback(new Error(`CORS not allowed for origin: ${origin}`));
-        }
-      },
+      origin: true,
       methods: ['GET', 'POST'],
       credentials: true,
     },
