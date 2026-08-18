@@ -40,7 +40,7 @@ const WorkspaceLayoutInner: React.FC<WorkspaceLayoutProps> = ({
   const { workspaceId } = useParams<{ workspaceId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const documentIdMatch = location.pathname.match(/\/d\/([^\/]+)/);
+  const documentIdMatch = location.pathname.match(/\/d\/([^/]+)/);
   const documentId = documentIdMatch ? documentIdMatch[1] : undefined;
   
   const [isMainSidebarOpen, setIsMainSidebarOpen] = useState(typeof window !== 'undefined' ? window.innerWidth >= 1024 : true);
@@ -81,6 +81,23 @@ const WorkspaceLayoutInner: React.FC<WorkspaceLayoutProps> = ({
   const closePanel = () => {
     setActivePanel(null);
   };
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        // If a panel is open, close it
+        if (activePanel) {
+          closePanel();
+        } else if (isMainSidebarOpen && window.innerWidth < 768) {
+          // If no panel is open but mobile sidebar is open, close it
+          setIsMainSidebarOpen(false);
+        }
+      }
+    };
+    
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [activePanel, isMainSidebarOpen]);
 
   const handleCreateDocument = async (type: 'TEXT' | 'CANVAS' = 'TEXT') => {
     if (isCreating || !workspaceId) return;
@@ -197,7 +214,7 @@ const WorkspaceLayoutInner: React.FC<WorkspaceLayoutProps> = ({
 
       <main className="flex-1 overflow-hidden relative z-10 flex">
         {/* Backdrop for mobile sidebar */}
-        {isMainSidebarOpen && containerWidth < 800 && (
+        {isMainSidebarOpen && (
           <div 
             className="fixed inset-0 bg-background/80 backdrop-blur-sm z-30 md:hidden"
             onClick={() => setIsMainSidebarOpen(false)}
@@ -233,22 +250,17 @@ const WorkspaceLayoutInner: React.FC<WorkspaceLayoutProps> = ({
           {/* Contextual Panels */}
           {activePanel && workspaceId && (
             <>
-              {(containerWidth < 600) && (
-                <div 
-                  className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 transition-opacity"
-                  onClick={closePanel}
-                />
-              )}
+              <div 
+                className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 transition-opacity md:hidden"
+                onClick={closePanel}
+              />
               
-              <div className={`flex h-full shrink-0 ${containerWidth < 600 ? 'fixed inset-y-0 right-0 z-50' : 'z-30'}`}>
+              <div className="flex h-full shrink-0 z-50 md:z-30 max-md:fixed max-md:inset-y-0 max-md:right-0">
                 {(() => {
-                  const isMobile = containerWidth < 500;
-                  const isOverlay = containerWidth < 600;
-                  
                   const className = `
-                    ${isMobile ? 'w-screen' : ''}
-                    ${isOverlay && !isMobile ? 'w-[min(400px,90vw)] shadow-2xl border-l border-border/50 bg-background/95 backdrop-blur-xl' : ''}
-                    ${!isOverlay ? 'w-80 xl:w-96 border-l border-border/50 shrink-0 relative h-full' : 'relative h-full'}
+                    max-sm:w-screen
+                    max-md:w-[min(400px,90vw)] max-md:shadow-2xl max-md:border-l max-md:border-border/50 max-md:bg-background/95 max-md:backdrop-blur-xl
+                    md:w-80 xl:w-96 md:border-l md:border-border/50 shrink-0 relative h-full
                     transition-all duration-300 flex flex-col bg-background
                   `;
 
@@ -259,7 +271,7 @@ const WorkspaceLayoutInner: React.FC<WorkspaceLayoutProps> = ({
                           variant="ghost" 
                           size="icon" 
                           onClick={closePanel} 
-                          className="absolute top-3 right-3 z-50 bg-background/50 backdrop-blur hover:bg-muted/80"
+                          className="absolute top-3 right-3 z-50 bg-background/50 backdrop-blur hover:bg-muted/80 max-md:min-h-[44px] max-md:min-w-[44px]"
                           aria-label="Close panel"
                         >
                           <X className="w-4 h-4" />

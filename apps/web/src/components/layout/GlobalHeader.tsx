@@ -53,8 +53,10 @@ export const GlobalHeader: React.FC<GlobalHeaderProps> = ({
           variant="ghost"
           size="icon"
           onClick={() => setIsMainSidebarOpen(!isMainSidebarOpen)}
-          className={`h-8 w-8 transition-colors ${isMainSidebarOpen ? 'text-primary bg-primary/10' : 'text-muted-foreground'}`}
-          aria-label="Toggle Sidebar"
+          className={`h-8 w-8 max-md:h-11 max-md:w-11 transition-colors ${isMainSidebarOpen ? 'text-primary bg-primary/10' : 'text-muted-foreground'}`}
+          aria-label={isMainSidebarOpen ? "Close Sidebar" : "Open Sidebar"}
+          aria-expanded={isMainSidebarOpen}
+          aria-controls="workspace-sidebar"
           title="Toggle Sidebar"
         >
           <PanelLeft className="h-5 w-5" />
@@ -112,7 +114,7 @@ export const GlobalHeader: React.FC<GlobalHeaderProps> = ({
 
         <button
           onClick={() => togglePanel('activity')}
-          className={`p-2 rounded-full transition-colors relative ${
+          className={`p-2 rounded-full transition-colors relative flex items-center justify-center max-md:min-h-[44px] max-md:min-w-[44px] ${
             activePanel === 'activity'
               ? 'bg-primary/20 text-primary' 
               : 'text-muted-foreground hover:bg-muted/70 hover:text-foreground'
@@ -125,7 +127,7 @@ export const GlobalHeader: React.FC<GlobalHeaderProps> = ({
 
         <button
           onClick={() => togglePanel('globalChat')}
-          className={`p-2 rounded-full transition-colors relative ${
+          className={`p-2 rounded-full transition-colors relative flex items-center justify-center max-md:min-h-[44px] max-md:min-w-[44px] ${
             activePanel === 'globalChat'
               ? 'bg-primary/20 text-primary' 
               : 'text-muted-foreground hover:bg-muted/70 hover:text-foreground'
@@ -158,8 +160,9 @@ export const GlobalHeader: React.FC<GlobalHeaderProps> = ({
 
         <button
           onClick={onLogout}
-          className="text-xs bg-muted/40 hover:bg-tint-red/10 hover:text-tint-red text-muted-foreground border border-border/50 p-2 sm:px-3 sm:py-1.5 rounded-md transition-all duration-200 shrink-0 flex items-center"
+          className="text-xs bg-muted/40 hover:bg-tint-red/10 hover:text-tint-red text-muted-foreground border border-border/50 p-2 sm:px-3 sm:py-1.5 max-md:min-h-[44px] max-md:min-w-[44px] rounded-md transition-all duration-200 shrink-0 flex items-center justify-center"
           title="Log Out"
+          aria-label="Log Out"
         >
           <span className="hidden sm:inline">Log Out</span>
           <svg className="w-4 h-4 sm:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">

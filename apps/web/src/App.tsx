@@ -5,14 +5,13 @@ const CollaborativeEditor = lazy(() => import('./components/editor/Collaborative
 import { DocumentDashboard } from './components/dashboard/DocumentDashboard'
 import { Home } from './components/home/Home'
 import { WorkspaceLayout } from './components/layout/WorkspaceLayout'
+import { NotificationsPage } from './pages/Notifications';
 import { io, Socket } from 'socket.io-client';
 import './App.css'
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:4000'
 
-function getRandomColor() {
-  return `hsl(${Math.floor(Math.random() * 360)}, 85%, 60%)`
-}
+import { stringToColor } from './utils/colors';
 
 function DocumentEditorRoute({ user, jwt, serverUrl }: any) {
   const { workspaceId, documentId } = useParams<{ workspaceId: string; documentId: string }>();
@@ -201,6 +200,22 @@ function AuthenticatedApp({ user, setUser, jwt, setJwt }: any) {
           />
         } />
         
+        <Route path="/join/:token" element={
+          <JoinWorkspace 
+            token={jwt}
+            serverUrl={BACKEND_URL}
+          />
+        } />
+        
+        <Route path="/notifications" element={
+          <NotificationsPage 
+            jwt={jwt} 
+            serverUrl={BACKEND_URL}
+            onLogout={handleLogout}
+            user={user}
+          />
+        } />
+        
         <Route path="/w/:workspaceId" element={
           <WorkspaceLayout 
             user={user}
@@ -240,6 +255,8 @@ function AuthenticatedApp({ user, setUser, jwt, setJwt }: any) {
   )
 }
 
+
+import { JoinWorkspace } from './components/dashboard/JoinWorkspace';
 
 export default function App() {
   const [jwt, setJwt] = useState<string | null>(() => localStorage.getItem('nexus_jwt'))
@@ -304,7 +321,7 @@ export default function App() {
           email: data.user.email,
           name: data.user.name || email.split('@')[0],
           username: data.user.username,
-          color: getRandomColor(),
+          color: stringToColor(data.user.id),
         })
         setLoading(false)
       }

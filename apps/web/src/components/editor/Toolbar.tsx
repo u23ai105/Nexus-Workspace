@@ -37,7 +37,7 @@ function ToolbarButton({ onClick, isActive, disabled, title, children }: Toolbar
       onClick={onClick}
       disabled={disabled}
       title={title}
-      className={`h-8 w-8 focus:outline-none transition-colors ${
+      className={`h-8 w-8 max-md:h-10 max-md:w-10 focus:outline-none transition-colors shrink-0 ${
         isActive ? 'bg-muted text-foreground font-semibold shadow-sm' : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
       }`}
       aria-label={title}

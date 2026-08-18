@@ -42,6 +42,7 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
   
   return (
     <aside 
+      id="workspace-sidebar"
       className={`
         fixed md:static top-0 left-0 h-full bg-card/60 md:bg-transparent backdrop-blur-xl md:backdrop-blur-none border-r border-border/60 
         flex flex-col justify-between py-6 z-50 transition-all duration-300 ease-in-out shrink-0 overflow-hidden
@@ -51,8 +52,8 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
       <div>
         <div className="flex justify-between items-center mb-6 lg:hidden">
           <span className="font-semibold text-sm tracking-tight text-foreground/80 px-2">Menu</span>
-          <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:bg-muted/60 hover:text-foreground" onClick={() => setIsMainSidebarOpen(false)} aria-label="Close menu">
-            <X className="h-4 w-4" />
+          <Button variant="ghost" size="icon" className="h-9 w-9 max-md:min-h-[44px] max-md:min-w-[44px] text-muted-foreground hover:bg-muted/60 hover:text-foreground" onClick={() => setIsMainSidebarOpen(false)} aria-label="Close menu">
+            <X className="h-5 w-5" />
           </Button>
         </div>
 

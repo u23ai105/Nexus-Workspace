@@ -46,6 +46,11 @@ export const ManageTeamModal: React.FC<ManageTeamModalProps> = ({
   const [searchResults, setSearchResults] = useState<User[]>([]);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
+  // Link Invite State
+  const [linkRole, setLinkRole] = useState<'EDITOR' | 'VIEWER'>('VIEWER');
+  const [generatedLink, setGeneratedLink] = useState<string | null>(null);
+  const [generatingLink, setGeneratingLink] = useState(false);
+
   useEffect(() => {
     const delayDebounceFn = setTimeout(() => {
       if (inviteQuery.length >= 2 && !selectedUser) {
@@ -65,6 +70,7 @@ export const ManageTeamModal: React.FC<ManageTeamModalProps> = ({
 
   useEffect(() => {
     fetchMembers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workspaceId]);
 
   const fetchMembers = async () => {
@@ -111,6 +117,36 @@ export const ManageTeamModal: React.FC<ManageTeamModalProps> = ({
       setError(err.message);
     } finally {
       setInviting(false);
+    }
+  };
+
+  const handleGenerateLink = async () => {
+    setGeneratingLink(true);
+    setError(null);
+    try {
+      const res = await fetch(`${serverUrl}/api/workspaces/${workspaceId}/invites`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ defaultRole: linkRole }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to generate link');
+      
+      const inviteUrl = `${window.location.origin}/join/${data.token}`;
+      setGeneratedLink(inviteUrl);
+      // Optional: auto-copy to clipboard
+      try {
+        await navigator.clipboard.writeText(inviteUrl);
+      } catch (_err) {
+        // ignore clipboard error
+      }
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setGeneratingLink(false);
     }
   };
 
@@ -244,6 +280,40 @@ export const ManageTeamModal: React.FC<ManageTeamModalProps> = ({
                   </Button>
                 </div>
               </form>
+              
+              {/* Link Invite Section */}
+              <div className="mt-6 pt-6 border-t border-border/50">
+                <h3 className="text-sm font-semibold text-foreground mb-1">Invite via Link</h3>
+                <p className="text-xs text-muted-foreground mb-3">Generate a secure link to invite multiple people at once.</p>
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                  <select
+                    value={linkRole}
+                    onChange={(e) => setLinkRole(e.target.value as any)}
+                    className="flex h-9 w-full sm:w-[120px] items-center justify-between rounded-md border border-input bg-background px-3 py-1.5 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                    aria-label="Select link role"
+                  >
+                    <option value="EDITOR">Editor</option>
+                    <option value="VIEWER">Viewer</option>
+                  </select>
+                  
+                  <Button 
+                    type="button" 
+                    variant="secondary"
+                    onClick={handleGenerateLink}
+                    disabled={generatingLink} 
+                    className="h-9 w-full sm:w-auto text-sm"
+                  >
+                    {generatingLink ? 'Generating...' : 'Generate & Copy Link'}
+                  </Button>
+                </div>
+                
+                {generatedLink && (
+                  <div className="mt-3 flex items-center justify-between gap-2 p-2 bg-muted/30 border border-border/50 rounded text-sm">
+                    <span className="truncate text-muted-foreground select-all">{generatedLink}</span>
+                    <Badge variant="outline" className="text-[10px] uppercase shrink-0">Copied!</Badge>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 

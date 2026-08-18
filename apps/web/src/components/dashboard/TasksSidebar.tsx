@@ -173,7 +173,7 @@ export const TasksSidebar: React.FC<TasksSidebarProps> = ({
             <div className="flex items-center gap-2 px-1">
               {/* Priority Selector */}
               <DropdownMenu>
-                <DropdownMenuTrigger asChild>
+                <DropdownMenuTrigger>
                   <Button variant="outline" size="sm" className="h-7 text-xs rounded-lg px-2 text-muted-foreground hover:text-foreground">
                     {(() => {
                       const P = priorityConfig[newTaskPriority];
@@ -197,7 +197,7 @@ export const TasksSidebar: React.FC<TasksSidebarProps> = ({
 
               {/* Assignee Selector */}
               <DropdownMenu>
-                <DropdownMenuTrigger asChild>
+                <DropdownMenuTrigger>
                   <Button variant="outline" size="sm" className="h-7 text-xs rounded-lg px-2 text-muted-foreground hover:text-foreground">
                     <User className="w-3.5 h-3.5 mr-1" />
                     {newTaskAssigneeId ? (allMembers.find((m: any) => m.user.id === newTaskAssigneeId)?.user.name || allMembers.find((m: any) => m.user.id === newTaskAssigneeId)?.user.email) : 'Assign'}
@@ -283,7 +283,7 @@ export const TasksSidebar: React.FC<TasksSidebarProps> = ({
                               {/* Priority */}
                               {userRole !== 'VIEWER' ? (
                                 <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
+                                  <DropdownMenuTrigger>
                                     <button className={`inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded border ${priorityColor} transition-opacity hover:opacity-80`}>
                                       <PriorityIcon className="w-3 h-3" />
                                       {priorityConfig[task.priority || 'MEDIUM'].label}
@@ -310,7 +310,7 @@ export const TasksSidebar: React.FC<TasksSidebarProps> = ({
                               {/* Assignee */}
                               {userRole !== 'VIEWER' ? (
                                 <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
+                                  <DropdownMenuTrigger>
                                     <button className="flex items-center gap-1.5 hover:bg-muted/80 px-1 rounded transition-colors group/assignee">
                                       {task.assignee ? (
                                         <>

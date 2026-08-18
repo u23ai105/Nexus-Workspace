@@ -51,7 +51,6 @@ export const getDocuments = async (req: AuthRequest, res: Response) => {
       select: {
         id: true,
         title: true,
-        textContent: true,
         isArchived: true,
         type: true,
         folderId: true,
@@ -133,6 +132,14 @@ export const createDocument = async (req: AuthRequest, res: Response) => {
 
     // Smart Untitled incrementing logic
     let finalTitle = title && title.trim() !== '' ? title.trim() : 'Untitled Document';
+    
+    // Verify cross-workspace ID manipulation for folder
+    if (folderId) {
+      const folder = await prisma.folder.findUnique({ where: { id: folderId } });
+      if (!folder || folder.workspaceId !== workspaceId) {
+        return res.status(400).json({ error: 'Invalid destination folder' });
+      }
+    }
     if (finalTitle.startsWith('Untitled Document')) {
       const count = await prisma.document.count({
         where: {

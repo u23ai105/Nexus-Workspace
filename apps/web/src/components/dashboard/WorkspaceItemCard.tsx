@@ -76,7 +76,7 @@ export const WorkspaceItemCard: React.FC<WorkspaceItemCardProps> = ({
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
-          !isRenaming && onClick();
+          if (!isRenaming) onClick();
         }
       }}
     >

@@ -98,7 +98,7 @@ export const PresentationBar: React.FC<PresentationBarProps> = ({
     if (isActive && presenterId === userId && socket && currentDocumentId) {
       socket.emit('presentation:switch_doc', { workspaceId, documentId: currentDocumentId });
     }
-  }, [currentDocumentId, isActive, presenterId, socket, workspaceId]);
+  }, [currentDocumentId, isActive, presenterId, socket, workspaceId, userId]);
 
   // PeerJS setup
   useEffect(() => {

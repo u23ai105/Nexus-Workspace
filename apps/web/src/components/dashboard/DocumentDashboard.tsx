@@ -440,7 +440,7 @@ export const DocumentDashboard: React.FC<DocumentDashboardProps> = ({
                   <section>
                     <h2 className="text-sm font-medium text-muted-foreground mb-4 uppercase tracking-wider">Continue Working</h2>
                     {recentDocs.length > 0 ? (
-                      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-3 2xl:grid-cols-4" style={{ gridAutoRows: '1fr' }}>
+                      <div className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(min(100%,260px),1fr))]" style={{ gridAutoRows: '1fr' }}>
                         {recentDocs.map((doc: any) => (
                           <DocumentCard
                             key={`recent-${doc.id}`}
@@ -469,7 +469,7 @@ export const DocumentDashboard: React.FC<DocumentDashboardProps> = ({
                       Favorites
                     </h2>
                     {favoriteDocs.length > 0 ? (
-                      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-3 2xl:grid-cols-4">
+                      <div className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(min(100%,260px),1fr))]">
                         {favoriteDocs.map((doc: any) => (
                           <DocumentCard
                             key={`fav-${doc.id}`}
@@ -587,7 +587,7 @@ export const DocumentDashboard: React.FC<DocumentDashboardProps> = ({
                     onDragLeave={(e) => handleDragLeave(e, 'root')}
                     onDrop={(e) => handleDrop(e, 'root')}
                   >
-                    <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-3 2xl:grid-cols-4 p-1">
+                    <div className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(min(100%,260px),1fr))] p-1">
                       {/* Folders */}
                     {folders.filter((f: any) => {
                       if (!isTrashRoute && f.parentId !== currentFolderId) return false;

@@ -39,13 +39,21 @@ export const uploadFile = async (req: AuthRequest, res: Response) => {
 
     const file = req.file;
 
-    // Verify workspace access
-    const workspace = await prisma.workspace.findUnique({
-      where: { id: workspaceId },
-      include: { members: { where: { userId, status: 'ACCEPTED' } } }
-    });
-    if (!workspace || (workspace.ownerId !== userId && workspace.members.length === 0)) {
+    // Verify workspace access and role
+    const role = await getUserRole(userId, workspaceId);
+    if (!role) {
       return res.status(403).json({ error: 'Forbidden access to this workspace' });
+    }
+    if (role === 'VIEWER') {
+      return res.status(403).json({ error: 'Forbidden: Viewers cannot upload files' });
+    }
+
+    // Verify cross-workspace ID manipulation for folder
+    if (folderId) {
+      const folder = await prisma.folder.findUnique({ where: { id: folderId } });
+      if (!folder || folder.workspaceId !== workspaceId) {
+        return res.status(400).json({ error: 'Invalid destination folder' });
+      }
     }
     
     if (!supabase) {

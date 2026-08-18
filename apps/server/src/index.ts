@@ -13,8 +13,11 @@ import dmRoutes from './routes/dm.route';
 import aiRoutes from './routes/ai.route';
 import folderRoutes from './routes/folder.routes';
 import taskRoutes from './routes/task.routes';
+import notificationRoutes from './routes/notification.route';
 import cron from 'node-cron';
 import { prisma } from '@nexus/database';
+import { previewWorkspaceInvite, joinWorkspaceViaInvite, generateWorkspaceInvite } from './controllers/invite.controller';
+import { authenticateJWT } from './middlewares/auth.middleware';
 
 dotenv.config();
 
@@ -50,11 +53,17 @@ app.use('/api/workspaces/:workspaceId/messages', messageRoutes);
 app.use('/api/documents', documentRoutes);
 app.use('/api/files', fileRoutes);
 app.use('/api/invitations', invitationRoutes);
+app.use('/api/notifications', notificationRoutes);
 app.use('/api/dms', dmRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/workspaces/:workspaceId/folders', folderRoutes);
 app.use('/api/workspaces/:workspaceId/tasks', taskRoutes);
+
+// New Link-based Invite Routes
+app.get('/api/workspaces/invites/preview/:token', previewWorkspaceInvite);
+app.post('/api/workspaces/invites/:token/join', authenticateJWT, joinWorkspaceViaInvite);
+app.post('/api/workspaces/:workspaceId/invites', authenticateJWT, generateWorkspaceInvite);
 
 // Start Server if not in test mode
 let server: any;

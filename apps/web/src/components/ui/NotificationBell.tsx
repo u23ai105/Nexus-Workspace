@@ -53,7 +53,8 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ jwt, serverU
       document.removeEventListener('mousedown', handleClickOutside);
       socket.disconnect();
     };
-  }, [jwt, serverUrl]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jwt, serverUrl, onWorkspaceRemoved]);
 
   const fetchInvitations = async () => {
     try {

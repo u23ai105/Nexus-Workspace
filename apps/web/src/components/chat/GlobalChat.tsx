@@ -118,7 +118,7 @@ export const GlobalChat: React.FC<GlobalChatProps> = ({
     } else {
       fetchSummaries();
     }
-  }, [activeDmUserId, token, serverUrl]);
+  }, [activeDmUserId, token, serverUrl, fetchSummaries]);
 
   useEffect(() => {
     if (searchQuery.trim().length >= 2) {
@@ -174,7 +174,7 @@ export const GlobalChat: React.FC<GlobalChatProps> = ({
     return () => {
       newSocket.disconnect();
     };
-  }, [activeDmUserId, serverUrl, token]);
+  }, [activeDmUserId, serverUrl, token, fetchSummaries]);
 
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();

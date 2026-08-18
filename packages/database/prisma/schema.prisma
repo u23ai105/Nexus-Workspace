@@ -16,40 +16,45 @@ enum WorkspaceRole {
 }
 
 model User {
-  id        String      @id @default(uuid())
-  email     String      @unique
-  username  String?     @unique
+  id        String   @id @default(uuid())
+  email     String   @unique
+  username  String?  @unique
   password  String
   name      String?
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  workspaces       Workspace[]
-  documents        Document[]
-  files            File[]
-  workspaceMembers WorkspaceMember[]
-  messages         Message[]
-  sentDms          DirectMessage[] @relation("SentDMs")
-  receivedDms      DirectMessage[] @relation("ReceivedDMs")
-  assignedTasks    ActionItem[]    @relation("AssignedTasks")
+  workspaces        Workspace[]
+  documents         Document[]
+  files             File[]
+  workspaceMembers  WorkspaceMember[]
+  messages          Message[]
+  sentDms           DirectMessage[]     @relation("SentDMs")
+  receivedDms       DirectMessage[]     @relation("ReceivedDMs")
+  assignedTasks     ActionItem[]        @relation("AssignedTasks")
   favoriteDocuments DocumentFavorite[]
-  activities       WorkspaceActivity[]
+  activities        WorkspaceActivity[]
+  workspaceInvites  WorkspaceInvite[]
+  notifications     Notification[]
+  actorNotifications Notification[]     @relation("NotificationActor")
 }
 
 model Workspace {
-  id        String     @id @default(uuid())
-  name      String
-  ownerId   String
-  owner     User       @relation(fields: [ownerId], references: [id])
-  documents Document[]
-  folders   Folder[]
-  files     File[]
-  members   WorkspaceMember[]
-  messages  Message[]
-  tasks     ActionItem[]
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  id         String              @id @default(uuid())
+  name       String
+  ownerId    String
+  owner      User                @relation(fields: [ownerId], references: [id])
+  documents  Document[]
+  folders    Folder[]
+  files      File[]
+  members    WorkspaceMember[]
+  messages   Message[]
+  tasks      ActionItem[]
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
   activities WorkspaceActivity[]
+  invites    WorkspaceInvite[]
+  notifications Notification[]
 
   @@index([ownerId])
 }
@@ -76,28 +81,44 @@ model WorkspaceMember {
   @@index([userId])
 }
 
+model WorkspaceInvite {
+  id          String        @id @default(uuid())
+  workspaceId String
+  workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  tokenHash   String        @unique
+  createdById String?
+  creator     User?         @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  defaultRole WorkspaceRole @default(VIEWER)
+  expiresAt   DateTime?
+  createdAt   DateTime      @default(now())
+  notifications Notification[]
+
+  @@index([workspaceId])
+}
+
 enum DocumentType {
   TEXT
   CANVAS
 }
 
 model Document {
-  id          String       @id @default(uuid())
-  type        DocumentType @default(TEXT)
-  title       String    @default("Untitled Document")
+  id          String             @id @default(uuid())
+  type        DocumentType       @default(TEXT)
+  title       String             @default("Untitled Document")
   yjsState    Bytes?
   textContent String?
-  isArchived  Boolean   @default(false)
+  isArchived  Boolean            @default(false)
   workspaceId String
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspace   Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   folderId    String?
-  folder      Folder?   @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  folder      Folder?            @relation(fields: [folderId], references: [id], onDelete: Cascade)
   creatorId   String
-  creator     User      @relation(fields: [creatorId], references: [id])
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  creator     User               @relation(fields: [creatorId], references: [id])
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
   favorites   DocumentFavorite[]
   actionItems ActionItem[]
+  notifications Notification[]
 
   @@index([workspaceId, isArchived])
 }
@@ -166,23 +187,24 @@ model Folder {
 }
 
 model ActionItem {
-  id          String    @id @default(uuid())
-  content     String
-  status      String    @default("TODO") // TODO, IN_PROGRESS, DONE
-  priority    String    @default("MEDIUM") // LOW, MEDIUM, HIGH
-  dueDate     DateTime?
-  
+  id       String    @id @default(uuid())
+  content  String
+  status   String    @default("TODO") // TODO, IN_PROGRESS, DONE
+  priority String    @default("MEDIUM") // LOW, MEDIUM, HIGH
+  dueDate  DateTime?
+
   workspaceId String
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  
-  assigneeId  String?
-  assignee    User?     @relation("AssignedTasks", fields: [assigneeId], references: [id], onDelete: SetNull)
-  
-  documentId  String?   // optional reference to where it was created
-  document    Document? @relation(fields: [documentId], references: [id], onDelete: SetNull)
-  
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+
+  assigneeId String?
+  assignee   User?   @relation("AssignedTasks", fields: [assigneeId], references: [id], onDelete: SetNull)
+
+  documentId String? // optional reference to where it was created
+  document   Document? @relation(fields: [documentId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  notifications Notification[]
 
   @@index([workspaceId])
   @@index([assigneeId])
@@ -232,3 +254,31 @@ model WorkspaceActivity {
   @@index([actorId])
 }
 
+model Notification {
+  id          String    @id @default(uuid())
+  recipientId String
+  recipient   User      @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+  actorId     String?
+  actor       User?     @relation("NotificationActor", fields: [actorId], references: [id], onDelete: SetNull)
+  workspaceId String?
+  workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  type        String    // e.g. "TASK_ASSIGNED"
+  eventId     String?   // unique key for idempotency/deduplication (e.g. "TASK_ASSIGNED:task-123:user-456")
+  title       String
+  message     String?
+  readAt      DateTime?
+  archivedAt  DateTime? // Represents "Done" state in GitHub workflow
+  createdAt   DateTime  @default(now())
+
+  documentId  String?
+  document    Document? @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  taskId      String?
+  task        ActionItem? @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  inviteId    String?
+  invite      WorkspaceInvite? @relation(fields: [inviteId], references: [id], onDelete: SetNull)
+
+  @@unique([eventId])
+  @@index([recipientId, createdAt])
+  @@index([recipientId, readAt])
+  @@index([recipientId, archivedAt])
+}

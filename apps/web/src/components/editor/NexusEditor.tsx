@@ -268,7 +268,10 @@ export function NexusEditor({ ydoc, awareness, user, documentTitle, readOnly = f
 
   // ── Presentation ("Follow Me") State ─────────────────────────────────────
   const [localIsPresenting, setLocalIsPresenting] = useState(false)
-  const [presenterInfo, setPresenterInfo] = useState<{ name: string; scrollTop: number; scrollHeight: number; clientId: number } | null>(null)
+  const [presenterInfo, setPresenterInfo] = useState<{ name: string; normalizedScroll: number; clientId: number } | null>(null)
+  const [isFollowing, setIsFollowing] = useState(false)
+  const isProgrammaticScrollRef = useRef(false)
+  const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     const handleAwarenessChange = () => {
@@ -281,16 +284,24 @@ export function NexusEditor({ ydoc, awareness, user, documentTitle, readOnly = f
         
         if (p?.isPresenting) {
           foundPresenter = true
-          setPresenterInfo({
-            name: u?.name || 'Someone',
-            scrollTop: p.scrollTop,
-            scrollHeight: p.scrollHeight,
-            clientId,
+          setPresenterInfo(prev => {
+            // Auto-follow if a new presenter appears
+            if (!prev || prev.clientId !== clientId) {
+              setIsFollowing(true)
+            }
+            return {
+              name: u?.name || 'Someone',
+              normalizedScroll: p.normalizedScroll,
+              clientId,
+            }
           })
         }
       })
       
-      if (!foundPresenter) setPresenterInfo(null)
+      if (!foundPresenter) {
+        setPresenterInfo(null)
+        setIsFollowing(false)
+      }
     }
     
     awareness.on('change', handleAwarenessChange)
@@ -300,45 +311,104 @@ export function NexusEditor({ ydoc, awareness, user, documentTitle, readOnly = f
 
 
   // ── Scroll Sync for "Follow Me" ──────────────────────────────────────────
+  
+  // 1. Presenter broadcasts scroll
+  useEffect(() => {
+    const scrollContainer = scrollRef.current
+    if (!scrollContainer || !localIsPresenting) return
+
+    let rafId: number;
+    const handleScroll = () => {
+      cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        // Calculate max scrollable distance
+        const maxScroll = scrollContainer.scrollHeight - scrollContainer.clientHeight
+        const normalizedScroll = maxScroll > 0 ? scrollContainer.scrollTop / maxScroll : 0
+
+        awareness.setLocalStateField('presentation', {
+          isPresenting: true,
+          normalizedScroll,
+        })
+      });
+    }
+
+    scrollContainer.addEventListener('scroll', handleScroll, { passive: true })
+    return () => {
+      scrollContainer.removeEventListener('scroll', handleScroll)
+      cancelAnimationFrame(rafId)
+    }
+  }, [localIsPresenting, awareness])
+
+  // 2. Follower applies scroll
+  useEffect(() => {
+    if (presenterInfo && isFollowing && !localIsPresenting) {
+      const scrollContainer = scrollRef.current
+      if (scrollContainer) {
+        const maxScroll = scrollContainer.scrollHeight - scrollContainer.clientHeight
+        const targetScroll = presenterInfo.normalizedScroll * maxScroll
+        
+        // Only apply if there's a meaningful difference to avoid micro-jitters
+        if (Math.abs(scrollContainer.scrollTop - targetScroll) > 2) {
+          isProgrammaticScrollRef.current = true
+          scrollContainer.scrollTo({ top: targetScroll, behavior: 'auto' })
+          
+          if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current)
+          scrollTimeoutRef.current = setTimeout(() => {
+            isProgrammaticScrollRef.current = false
+          }, 100)
+        }
+      }
+    }
+  }, [presenterInfo, isFollowing, localIsPresenting])
+
+  // 3. Detect manual user scroll to break follow mode
   useEffect(() => {
     const scrollContainer = scrollRef.current
     if (!scrollContainer) return
 
-    const handleScroll = () => {
-      if (localIsPresenting) {
-        awareness.setLocalStateField('presentation', {
-          isPresenting: true,
-          scrollTop: scrollContainer.scrollTop,
-          scrollHeight: scrollContainer.scrollHeight,
-        })
+    const handleUserInteraction = () => {
+      // If we are currently following someone, manual interaction breaks the follow state
+      if (isFollowing && !localIsPresenting) {
+        setIsFollowing(false)
+      }
+    }
+    
+    const handleScrollEvent = () => {
+      if (!isProgrammaticScrollRef.current) {
+        handleUserInteraction()
       }
     }
 
-    scrollContainer.addEventListener('scroll', handleScroll)
-    return () => scrollContainer.removeEventListener('scroll', handleScroll)
-  }, [localIsPresenting, awareness])
-
-  // Lock scroll if following
-  useEffect(() => {
-    if (presenterInfo && !localIsPresenting) {
-      const scrollContainer = scrollRef.current
-      if (scrollContainer) {
-        // Simple proportional scrolling
-        const scrollRatio = presenterInfo.scrollHeight > 0 ? presenterInfo.scrollTop / presenterInfo.scrollHeight : 0
-        scrollContainer.scrollTop = scrollRatio * scrollContainer.scrollHeight
+    scrollContainer.addEventListener('wheel', handleUserInteraction, { passive: true })
+    scrollContainer.addEventListener('touchmove', handleUserInteraction, { passive: true })
+    scrollContainer.addEventListener('keydown', (e) => {
+      if (['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Space'].includes(e.code)) {
+        handleUserInteraction()
       }
+    }, { passive: true })
+    // Catch-all for scrollbar dragging (since wheel/touchmove don't cover it)
+    scrollContainer.addEventListener('scroll', handleScrollEvent, { passive: true })
+
+    return () => {
+      scrollContainer.removeEventListener('wheel', handleUserInteraction)
+      scrollContainer.removeEventListener('touchmove', handleUserInteraction)
+      scrollContainer.removeEventListener('keydown', handleUserInteraction)
+      scrollContainer.removeEventListener('scroll', handleScrollEvent)
     }
-  }, [presenterInfo, localIsPresenting])
+  }, [isFollowing, localIsPresenting])
 
   const togglePresentation = () => {
     const newState = !localIsPresenting
     setLocalIsPresenting(newState)
+    
     if (newState && scrollRef.current) {
+      const maxScroll = scrollRef.current.scrollHeight - scrollRef.current.clientHeight
+      const normalizedScroll = maxScroll > 0 ? scrollRef.current.scrollTop / maxScroll : 0
       awareness.setLocalStateField('presentation', {
         isPresenting: true,
-        scrollTop: scrollRef.current.scrollTop,
-        scrollHeight: scrollRef.current.scrollHeight,
+        normalizedScroll,
       })
+      setIsFollowing(false) // Presenter cannot follow
     } else {
       awareness.setLocalStateField('presentation', null)
     }
@@ -405,8 +475,8 @@ export function NexusEditor({ ydoc, awareness, user, documentTitle, readOnly = f
   }
 
   const { updateContext } = useActiveDocument()
-  const documentUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-  const selectionUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const documentUpdateTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const selectionUpdateTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const editor = useEditor({ 
     extensions,
@@ -445,12 +515,12 @@ export function NexusEditor({ ydoc, awareness, user, documentTitle, readOnly = f
     }
   })
 
-  // Lock editor when following someone
+  // Lock editor when actively following someone
   useEffect(() => {
     if (editor) {
-      editor.setEditable(!readOnly && !presenterInfo)
+      editor.setEditable(!readOnly && (!presenterInfo || !isFollowing))
     }
-  }, [editor, readOnly, presenterInfo])
+  }, [editor, readOnly, presenterInfo, isFollowing])
 
 
   return (
@@ -460,19 +530,19 @@ export function NexusEditor({ ydoc, awareness, user, documentTitle, readOnly = f
         scrollRef.current = node
         containerRef.current = node
       }}
-      className={`nexus-editor-container bg-background h-full overflow-y-auto relative overflow-x-hidden ${presenterInfo && !localIsPresenting ? 'overflow-hidden' : ''}`}
+      className={`nexus-editor-container bg-background h-full overflow-y-auto relative overflow-x-hidden ${(presenterInfo && isFollowing && !localIsPresenting) ? 'overflow-hidden' : ''}`}
     >
       {/* Sticky Header Group */}
       <div className="sticky top-0 z-40 w-full flex flex-col bg-background/95 backdrop-blur-xl border-b border-border/50">
         {/* Presentation Banner */}
-        {(localIsPresenting || presenterInfo) && (
+        {(localIsPresenting || (presenterInfo && isFollowing)) && (
           <PresentationBanner
             isPresenter={localIsPresenting}
             presenterName={presenterInfo?.name || ''}
             viewerCount={onlineUsers.length - 1}
             onStop={() => {
               if (localIsPresenting) togglePresentation()
-              else setPresenterInfo(null)
+              else setIsFollowing(false)
             }}
           />
         )}

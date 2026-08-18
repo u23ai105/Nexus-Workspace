@@ -5,10 +5,13 @@ import {
   Awareness,
   applyAwarenessUpdate,
   encodeAwarenessUpdate,
+  removeAwarenessStates
 } from 'y-protocols/awareness'
 import * as decoding from 'lib0/decoding'
-import { NexusEditor } from './NexusEditor'
-import { TldrawCanvas } from './TldrawCanvas'
+import { Suspense, lazy } from 'react'
+
+const NexusEditor = lazy(() => import('./NexusEditor').then(m => ({ default: m.NexusEditor })))
+const TldrawCanvas = lazy(() => import('./TldrawCanvas').then(m => ({ default: m.TldrawCanvas })))
 import { useActiveDocument } from '../../contexts/ActiveDocumentContext'
 
 interface CollaborativeEditorProps {
@@ -31,17 +34,19 @@ interface CollaborativeEditorProps {
 export function CollaborativeEditor(props: CollaborativeEditorProps) {
   if (props.documentType === 'CANVAS') {
     return (
-      <TldrawCanvas 
-        documentId={props.documentId}
-        userId={props.userId}
-        userName={props.userName}
-        token={props.token}
-        serverUrl={props.serverUrl}
-        documentTitle={props.documentTitle || 'Untitled Canvas'}
-        initialContent={props.initialContent}
-        readOnly={props.readOnly}
-        onBack={props.onBack}
-      />
+      <Suspense fallback={<div className="flex h-full w-full items-center justify-center bg-card text-muted-foreground"><span className="animate-pulse">Loading canvas...</span></div>}>
+        <TldrawCanvas 
+          documentId={props.documentId}
+          userId={props.userId}
+          userName={props.userName}
+          token={props.token}
+          serverUrl={props.serverUrl}
+          documentTitle={props.documentTitle || 'Untitled Canvas'}
+          initialContent={props.initialContent}
+          readOnly={props.readOnly}
+          onBack={props.onBack}
+        />
+      </Suspense>
     )
   }
 
@@ -132,7 +137,7 @@ function CollaborativeTextEditor({
     // ── 4. Socket connection events ────────────────────────────────────────
     socket.on('connect', () => {
       setIsConnected(true)
-      console.log('[Collab] Socket connected, joining document:', documentId)
+
 
       // Ask the server to put us into the Yjs room for this document.
       // The server will respond with the current full document state.
@@ -143,9 +148,22 @@ function CollaborativeTextEditor({
       socket.emit('awareness', Array.from(awarenessUpdate))
     })
 
-    socket.on('disconnect', (reason) => {
-      console.log('[Collab] Socket disconnected:', reason)
+    socket.on('disconnect', () => {
+
       setIsConnected(false)
+      
+      // Clear all remote awareness states locally.
+      // This ensures that if we lose connection, we don't see ghost cursors of other people.
+      // When we reconnect, we will receive their fresh awareness states.
+      const remoteClients: number[] = []
+      awareness.getStates().forEach((_state, clientId) => {
+        if (clientId !== awareness.clientID) {
+          remoteClients.push(clientId)
+        }
+      })
+      if (remoteClients.length > 0) {
+        removeAwarenessStates(awareness, remoteClients, 'local')
+      }
     })
 
     socket.on('connect_error', (err) => {
@@ -173,7 +191,7 @@ function CollaborativeTextEditor({
           // Apply with origin 'server' so our ydoc.on('update') listener
           // (below) will NOT echo it back — preventing an infinite loop.
           Y.applyUpdate(ydoc, update, 'server')
-          console.log(`[Collab] Applied initial sync (type=${messageType}), doc has state`)
+
         }
       } catch (err) {
         console.error('[Collab] Error processing sync message:', err)
@@ -201,7 +219,7 @@ function CollaborativeTextEditor({
     const handleDocUpdate = (update: Uint8Array, origin: unknown) => {
       if (origin !== 'server') {
         socket.emit('update', Array.from(update))
-        console.log('[Collab] Sent local update to server, bytes:', update.length)
+
       }
     }
     ydoc.on('update', handleDocUpdate)
@@ -242,7 +260,7 @@ function CollaborativeTextEditor({
 
     // ── 10. Cleanup on unmount (real navigation away, not StrictMode cycle) ─
     return () => {
-      console.log('[Collab] Cleanup: removing listeners and disconnecting socket')
+
       window.removeEventListener('beforeunload', handleBeforeUnload)
       ydoc.off('update', handleDocUpdate)
       awareness.off('update', handleAwarenessUpdate)
@@ -308,16 +326,18 @@ function CollaborativeTextEditor({
           Connecting…
         </div>
       )}
-      <NexusEditor
-        ydoc={ydoc}
-        awareness={awareness}
-        user={{ name: userName, color: userColor }}
-        documentTitle={documentTitle}
-        readOnly={readOnly}
-        onBack={onBack}
-        token={token}
-        serverUrl={serverUrl}
-      />
+      <Suspense fallback={<div className="flex h-full w-full items-center justify-center bg-card text-muted-foreground"><span className="animate-pulse">Loading editor...</span></div>}>
+        <NexusEditor
+          ydoc={ydoc}
+          awareness={awareness}
+          user={{ name: userName, color: userColor }}
+          documentTitle={documentTitle}
+          readOnly={readOnly}
+          onBack={onBack}
+          token={token}
+          serverUrl={serverUrl}
+        />
+      </Suspense>
     </div>
   )
 }

@@ -5,6 +5,44 @@ import hljs from 'highlight.js';
 import 'highlight.js/styles/github-dark.css';
 import { useActiveDocument } from '../../contexts/ActiveDocumentContext';
 
+const CodeBlock = ({ inline, className, children, ...props }: any) => {
+  const match = /language-(\w+)/.exec(className || '');
+  const [copied, setCopied] = useState(false);
+  const codeString = String(children).replace(/\n$/, '');
+
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(codeString);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  if (!inline && match) {
+    let highlighted = codeString;
+    try {
+      highlighted = hljs.highlight(codeString, { language: match[1], ignoreIllegals: true }).value;
+    } catch (e) {
+      // ignore language parsing error
+    }
+    return (
+      <div className="relative group rounded-md overflow-hidden bg-[#0d1117] border border-border/50 my-4 shadow-sm w-full">
+        <div className="flex items-center justify-between px-3 py-1.5 bg-[#161b22] border-b border-border/50 text-[11px] font-mono text-muted-foreground">
+          <span>{match[1]}</span>
+          <button onClick={copyToClipboard} className="p-1 hover:bg-background/20 rounded hover:text-foreground transition-all flex items-center gap-1" aria-label="Copy code">
+            {copied ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
+            {copied ? <span className="text-emerald-500">Copied</span> : <span>Copy</span>}
+          </button>
+        </div>
+        <div className="p-3 overflow-x-auto text-[13px] font-mono leading-relaxed text-[#c9d1d9]" dangerouslySetInnerHTML={{ __html: highlighted }} />
+      </div>
+    );
+  }
+  return (
+    <code className="bg-muted px-1.5 py-0.5 rounded-sm font-mono text-xs text-purple-400" {...props}>
+      {children}
+    </code>
+  );
+};
+
 interface AIChatMessage {
   id: string;
   role: 'user' | 'assistant';
@@ -151,41 +189,7 @@ export const WorkspaceAIChat: React.FC<WorkspaceAIChatProps> = ({
                 <div className="prose prose-sm dark:prose-invert prose-p:leading-relaxed prose-pre:p-0 prose-pre:bg-transparent prose-pre:border-0 max-w-none text-foreground/90 prose-p:text-foreground/90 prose-headings:text-foreground prose-strong:text-foreground">
                   <ReactMarkdown
                     components={{
-                      code: ({ inline, className, children, ...props }: any) => {
-                        const match = /language-(\w+)/.exec(className || '');
-                        const [copied, setCopied] = useState(false);
-                        const codeString = String(children).replace(/\n$/, '');
-
-                        const copyToClipboard = () => {
-                          navigator.clipboard.writeText(codeString);
-                          setCopied(true);
-                          setTimeout(() => setCopied(false), 2000);
-                        };
-
-                        if (!inline && match) {
-                          let highlighted = codeString;
-                          try {
-                            highlighted = hljs.highlight(codeString, { language: match[1], ignoreIllegals: true }).value;
-                          } catch (e) {}
-                          return (
-                            <div className="relative group rounded-md overflow-hidden bg-[#0d1117] border border-border/50 my-4 shadow-sm w-full">
-                              <div className="flex items-center justify-between px-3 py-1.5 bg-[#161b22] border-b border-border/50 text-[11px] font-mono text-muted-foreground">
-                                <span>{match[1]}</span>
-                                <button onClick={copyToClipboard} className="p-1 hover:bg-background/20 rounded hover:text-foreground transition-all flex items-center gap-1" aria-label="Copy code">
-                                  {copied ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
-                                  {copied ? <span className="text-emerald-500">Copied</span> : <span>Copy</span>}
-                                </button>
-                              </div>
-                              <div className="p-3 overflow-x-auto text-[13px] font-mono leading-relaxed text-[#c9d1d9]" dangerouslySetInnerHTML={{ __html: highlighted }} />
-                            </div>
-                          );
-                        }
-                        return (
-                          <code className="bg-muted px-1.5 py-0.5 rounded-sm font-mono text-xs text-purple-400" {...props}>
-                            {children}
-                          </code>
-                        );
-                      }
+                      code: CodeBlock
                     }}
                   >
                     {msg.content}

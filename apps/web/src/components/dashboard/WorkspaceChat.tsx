@@ -207,7 +207,7 @@ export const WorkspaceChat: React.FC<WorkspaceChatProps> = ({
     return parts.map((part, i) => {
       if (part.startsWith('@') && part.length > 1) {
         // Mention
-        const usernameMatch = part.match(/^@([a-zA-Z0-9_\.]+)/);
+        const usernameMatch = part.match(/^@([a-zA-Z0-9_.]+)/);
         if (usernameMatch) {
           const username = usernameMatch[1];
           const suffix = part.substring(usernameMatch[0].length);

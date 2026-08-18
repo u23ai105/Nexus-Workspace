@@ -9,6 +9,7 @@ import * as encoding from 'lib0/encoding';
 import * as decoding from 'lib0/decoding';
 import * as map from 'lib0/map';
 import { prisma } from '@nexus/database';
+import { getUserRole } from './utils/rbac';
 
 const FRONTEND_ORIGIN = process.env.CLIENT_URL || 'http://localhost:5173';
 
@@ -201,6 +202,10 @@ const socketAuthMiddleware = (socket: Socket, next: (err?: Error) => void) => {
   }
 };
 
+let ioInstance: SocketIOServer | null = null;
+
+export const getIo = () => ioInstance;
+
 export const createSocketServer = (server: HttpServer) => {
   const io = new SocketIOServer(server, {
     cors: {
@@ -216,6 +221,8 @@ export const createSocketServer = (server: HttpServer) => {
       credentials: true,
     },
   });
+
+  ioInstance = io;
 
   io.use(socketAuthMiddleware);
 
@@ -413,15 +420,15 @@ export const createSocketServer = (server: HttpServer) => {
     /**
      * Presentation Signaling
      */
-    socket.on('presentation:start', (data: { workspaceId: string, documentId: string, role: string, peerId?: string }) => {
+    socket.on('presentation:start', async (data: { workspaceId: string, documentId: string, role: string, peerId?: string }) => {
       if (!data.workspaceId || !data.documentId) return;
       
-      // Basic Role Check logic can be done here or trusted from client
-      if (data.role === 'VIEWER') return;
+      const realRole = await getUserRole(userId, data.workspaceId);
+      if (!realRole || realRole === 'VIEWER') return;
 
       activePresentations.set(data.workspaceId, {
         presenterId: userId,
-        role: data.role,
+        role: realRole,
         documentId: data.documentId,
         peerId: data.peerId
       });
@@ -472,10 +479,11 @@ export const createSocketServer = (server: HttpServer) => {
     });
 
     // Audio Admin Controls
-    socket.on('presentation:mute_user', (data: { workspaceId: string, targetUserId: string }) => {
-      // Assuming authorization check was done on client before sending this,
-      // but ideally we'd check if `userId` is ADMIN/OWNER in DB here.
-      io.to(`workspace:${data.workspaceId}`).emit('presentation:force_mute', { targetUserId: data.targetUserId });
+    socket.on('presentation:mute_user', async (data: { workspaceId: string, targetUserId: string }) => {
+      const realRole = await getUserRole(userId, data.workspaceId);
+      if (realRole === 'OWNER' || realRole === 'ADMIN') {
+        io.to(`workspace:${data.workspaceId}`).emit('presentation:force_mute', { targetUserId: data.targetUserId });
+      }
     });
 
     /**
@@ -484,6 +492,9 @@ export const createSocketServer = (server: HttpServer) => {
     socket.on('chat:message', async (data: { workspaceId: string; content: string }) => {
       try {
         if (!data.workspaceId || !data.content || userId === 'unknown') return;
+
+        const role = await getUserRole(userId, data.workspaceId);
+        if (!role) return; // Must be a member
 
         // Save to DB
         const message = await prisma.message.create({

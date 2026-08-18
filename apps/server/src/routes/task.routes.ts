@@ -2,6 +2,8 @@ import { Router, Response } from 'express';
 import { AuthRequest } from '../middlewares/auth.middleware';
 import { prisma } from '@nexus/database';
 import { authenticateJWT } from '../middlewares/auth.middleware';
+import { getUserRole } from '../utils/rbac';
+import { NotificationService } from '../services/notification.service';
 
 const router = Router({ mergeParams: true });
 
@@ -38,12 +40,17 @@ router.post('/', async (req: AuthRequest, res: Response) => {
     const { workspaceId } = req.params as { workspaceId: string };
     const { content, status, priority, dueDate, assigneeId, documentId } = req.body;
     
-    // Check if user is a VIEWER
-    const member = await prisma.workspaceMember.findUnique({
-      where: { userId_workspaceId: { userId: req.user!.id, workspaceId } }
-    });
-    if (!member || member.role === 'VIEWER') {
+    const role = await getUserRole(req.user!.id, workspaceId);
+    if (!role || role === 'VIEWER') {
       return res.status(403).json({ error: 'Viewers cannot create tasks' });
+    }
+
+    // Enforce cross-workspace scoping
+    if (documentId) {
+      const doc = await prisma.document.findUnique({ where: { id: documentId } });
+      if (!doc || doc.workspaceId !== workspaceId) {
+        return res.status(400).json({ error: 'Invalid document reference' });
+      }
     }
 
     const task = await prisma.actionItem.create({
@@ -65,6 +72,20 @@ router.post('/', async (req: AuthRequest, res: Response) => {
         }
       }
     });
+
+    if (assigneeId) {
+      // Fire-and-forget notification
+      NotificationService.createNotification({
+        recipientId: assigneeId,
+        actorId: req.user!.id,
+        workspaceId,
+        type: 'TASK_ASSIGNED',
+        title: 'New Task Assigned',
+        message: `You have been assigned to: ${content}`,
+        eventId: `TASK_ASSIGNED:${task.id}:${assigneeId}`,
+        taskId: task.id,
+      }).catch(err => console.error('Failed to notify assignee:', err));
+    }
     
     res.status(201).json({ task });
   } catch (error) {
@@ -79,13 +100,20 @@ router.patch('/:taskId', async (req: AuthRequest, res: Response) => {
     const { workspaceId, taskId } = req.params as { workspaceId: string; taskId: string };
     const { content, status, priority, dueDate, assigneeId } = req.body;
     
-    // Check if user is a VIEWER
-    const member = await prisma.workspaceMember.findUnique({
-      where: { userId_workspaceId: { userId: req.user!.id, workspaceId } }
-    });
-    if (!member || member.role === 'VIEWER') {
+    const role = await getUserRole(req.user!.id, workspaceId);
+    if (!role || role === 'VIEWER') {
       return res.status(403).json({ error: 'Viewers cannot update tasks' });
     }
+
+    // Ensure assignee is valid
+    if (assigneeId) {
+      const assigneeRole = await getUserRole(assigneeId, workspaceId);
+      if (!assigneeRole) {
+        return res.status(400).json({ error: 'Invalid assignee' });
+      }
+    }
+
+    const previousTask = await prisma.actionItem.findUnique({ where: { id: taskId } });
 
     const task = await prisma.actionItem.update({
       where: { id: taskId },
@@ -105,6 +133,19 @@ router.patch('/:taskId', async (req: AuthRequest, res: Response) => {
         }
       }
     });
+
+    if (assigneeId && previousTask?.assigneeId !== assigneeId) {
+      NotificationService.createNotification({
+        recipientId: assigneeId,
+        actorId: req.user!.id,
+        workspaceId,
+        type: 'TASK_ASSIGNED',
+        title: 'Task Assigned',
+        message: `You have been assigned to: ${task.content}`,
+        eventId: `TASK_ASSIGNED:${task.id}:${assigneeId}`,
+        taskId: task.id,
+      }).catch(err => console.error('Failed to notify assignee on update:', err));
+    }
     
     res.json({ task });
   } catch (error) {
@@ -118,11 +159,8 @@ router.delete('/:taskId', async (req: AuthRequest, res: Response) => {
   try {
     const { workspaceId, taskId } = req.params as { workspaceId: string; taskId: string };
     
-    // Check if user is a VIEWER
-    const member = await prisma.workspaceMember.findUnique({
-      where: { userId_workspaceId: { userId: req.user!.id, workspaceId } }
-    });
-    if (!member || member.role === 'VIEWER') {
+    const role = await getUserRole(req.user!.id, workspaceId);
+    if (!role || role === 'VIEWER') {
       return res.status(403).json({ error: 'Viewers cannot delete tasks' });
     }
 
