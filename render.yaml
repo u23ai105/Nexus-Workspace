@@ -42,7 +42,7 @@ services:
         value: "9.5.0"
       - key: NODE_ENV
         value: production
-      - key: VITE_API_URL
+      - key: VITE_BACKEND_URL
         fromService:
           type: web
           name: nexus-server

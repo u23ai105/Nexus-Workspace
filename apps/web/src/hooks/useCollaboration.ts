@@ -7,7 +7,10 @@ import {
 import { io, type Socket } from 'socket.io-client'
 import { useEffect, useRef, useState } from 'react'
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:4000'
+let BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:4000'
+if (BACKEND_URL && !BACKEND_URL.startsWith('http')) {
+  BACKEND_URL = `https://${BACKEND_URL}`
+}
 
 export type ConnectionStatus = 'connecting' | 'connected' | 'disconnected'
 
