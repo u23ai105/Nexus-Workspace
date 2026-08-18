@@ -109,7 +109,7 @@ Return formatting in standard Markdown. When providing code blocks, explicitly s
 
     let workspaceContextStr = '';
     workspace.documents.forEach((doc, idx) => {
-      workspaceContextStr += `- Document "${doc.title}":\n  ${doc.textContent ? doc.textContent.substring(0, 200).replace(/\n/g, ' ') : 'Empty'}...\n`;
+      workspaceContextStr += `- Document "${doc.title}":\n  ${doc.textContent ? doc.textContent.substring(0, 10000).replace(/\n/g, ' ') : 'Empty'}...\n`;
     });
     workspaceContextStr += '\nWorkspace Tasks:\n';
     workspace.tasks.forEach((task) => {
@@ -130,14 +130,14 @@ Return formatting in standard Markdown. When providing code blocks, explicitly s
     let documentContextSection = '';
     if (documentContext && !selectedText) {
       // Bounded document text if no selection
-      documentContextSection = `\n[DOCUMENT CONTEXT (Unsaved Live Editor Content)]\n"""\n${documentContext.substring(0, 10000)}\n"""\n`;
+      documentContextSection = `\n[DOCUMENT CONTEXT (Unsaved Live Editor Content)]\n"""\n${documentContext.substring(0, 50000)}\n"""\n`;
     }
 
     const fullPrompt = `[SYSTEM INSTRUCTIONS]
 ${systemInstruction}
 
 [WORKSPACE CONTEXT]
-${workspaceContextStr.substring(0, 4000)}
+${workspaceContextStr.substring(0, 50000)}
 ${currentDocumentSection}${selectedTextSection}${documentContextSection}
 [USER REQUEST]
 ${prompt}`;

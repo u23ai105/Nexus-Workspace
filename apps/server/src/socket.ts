@@ -28,9 +28,23 @@ const scheduleSaveToDb = (roomName: string, ydoc: Y.Doc, userId?: string) => {
     const documentId = roomName.replace('document:', '');
     try {
       const state = Y.encodeStateAsUpdate(ydoc);
+      let textContent: string | undefined;
+      try {
+        const xml = ydoc.getXmlFragment('default');
+        const rawString = xml.toString();
+        if (rawString) {
+          textContent = rawString.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+        }
+      } catch (e) {}
+
+      const dataToUpdate: any = { yjsState: Buffer.from(state) };
+      if (textContent !== undefined && textContent.length > 0) {
+        dataToUpdate.textContent = textContent;
+      }
+
       const updatedDoc = await prisma.document.update({
         where: { id: documentId },
-        data: { yjsState: Buffer.from(state) },
+        data: dataToUpdate,
         select: { workspaceId: true, title: true }
       });
       console.log(`[Yjs] Auto-saved snapshot to DB for ${roomName} (${state.length} bytes)`);
@@ -72,9 +86,23 @@ const flushSaveToDb = async (roomName: string, ydoc: Y.Doc) => {
   const documentId = roomName.replace('document:', '');
   try {
     const state = Y.encodeStateAsUpdate(ydoc);
+    let textContent: string | undefined;
+    try {
+      const xml = ydoc.getXmlFragment('default');
+      const rawString = xml.toString();
+      if (rawString) {
+        textContent = rawString.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+      }
+    } catch (e) {}
+
+    const dataToUpdate: any = { yjsState: Buffer.from(state) };
+    if (textContent !== undefined && textContent.length > 0) {
+      dataToUpdate.textContent = textContent;
+    }
+
     await prisma.document.update({
       where: { id: documentId },
-      data: { yjsState: Buffer.from(state) },
+      data: dataToUpdate,
     });
     console.log(`[Yjs] Flushed final snapshot to DB on room destroy for ${roomName} (${state.length} bytes)`);
   } catch (err) {
