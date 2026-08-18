@@ -1,4 +1,5 @@
-import { Router } from 'express';
+import { Router, Response } from 'express';
+import { AuthRequest } from '../middlewares/auth.middleware';
 import { prisma } from '@nexus/database';
 import { authenticateJWT } from '../middlewares/auth.middleware';
 
@@ -7,7 +8,7 @@ const router = Router({ mergeParams: true });
 router.use(authenticateJWT);
 
 // GET /api/workspaces/:workspaceId/tasks
-router.get('/', async (req, res) => {
+router.get('/', async (req: AuthRequest, res: Response) => {
   try {
     const { workspaceId } = req.params as { workspaceId: string };
     
@@ -16,6 +17,9 @@ router.get('/', async (req, res) => {
       include: {
         assignee: {
           select: { id: true, name: true, email: true }
+        },
+        document: {
+          select: { id: true, title: true }
         }
       },
       orderBy: { createdAt: 'desc' }
@@ -29,11 +33,19 @@ router.get('/', async (req, res) => {
 });
 
 // POST /api/workspaces/:workspaceId/tasks
-router.post('/', async (req, res) => {
+router.post('/', async (req: AuthRequest, res: Response) => {
   try {
     const { workspaceId } = req.params as { workspaceId: string };
     const { content, status, priority, dueDate, assigneeId, documentId } = req.body;
     
+    // Check if user is a VIEWER
+    const member = await prisma.workspaceMember.findUnique({
+      where: { userId_workspaceId: { userId: req.user!.id, workspaceId } }
+    });
+    if (!member || member.role === 'VIEWER') {
+      return res.status(403).json({ error: 'Viewers cannot create tasks' });
+    }
+
     const task = await prisma.actionItem.create({
       data: {
         content,
@@ -47,6 +59,9 @@ router.post('/', async (req, res) => {
       include: {
         assignee: {
           select: { id: true, name: true, email: true }
+        },
+        document: {
+          select: { id: true, title: true }
         }
       }
     });
@@ -59,11 +74,19 @@ router.post('/', async (req, res) => {
 });
 
 // PATCH /api/workspaces/:workspaceId/tasks/:taskId
-router.patch('/:taskId', async (req, res) => {
+router.patch('/:taskId', async (req: AuthRequest, res: Response) => {
   try {
-    const { taskId } = req.params;
+    const { workspaceId, taskId } = req.params as { workspaceId: string; taskId: string };
     const { content, status, priority, dueDate, assigneeId } = req.body;
     
+    // Check if user is a VIEWER
+    const member = await prisma.workspaceMember.findUnique({
+      where: { userId_workspaceId: { userId: req.user!.id, workspaceId } }
+    });
+    if (!member || member.role === 'VIEWER') {
+      return res.status(403).json({ error: 'Viewers cannot update tasks' });
+    }
+
     const task = await prisma.actionItem.update({
       where: { id: taskId },
       data: {
@@ -76,6 +99,9 @@ router.patch('/:taskId', async (req, res) => {
       include: {
         assignee: {
           select: { id: true, name: true, email: true }
+        },
+        document: {
+          select: { id: true, title: true }
         }
       }
     });
@@ -88,10 +114,18 @@ router.patch('/:taskId', async (req, res) => {
 });
 
 // DELETE /api/workspaces/:workspaceId/tasks/:taskId
-router.delete('/:taskId', async (req, res) => {
+router.delete('/:taskId', async (req: AuthRequest, res: Response) => {
   try {
-    const { taskId } = req.params;
+    const { workspaceId, taskId } = req.params as { workspaceId: string; taskId: string };
     
+    // Check if user is a VIEWER
+    const member = await prisma.workspaceMember.findUnique({
+      where: { userId_workspaceId: { userId: req.user!.id, workspaceId } }
+    });
+    if (!member || member.role === 'VIEWER') {
+      return res.status(403).json({ error: 'Viewers cannot delete tasks' });
+    }
+
     await prisma.actionItem.delete({
       where: { id: taskId }
     });

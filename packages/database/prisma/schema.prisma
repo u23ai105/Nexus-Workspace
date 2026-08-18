@@ -32,6 +32,8 @@ model User {
   sentDms          DirectMessage[] @relation("SentDMs")
   receivedDms      DirectMessage[] @relation("ReceivedDMs")
   assignedTasks    ActionItem[]    @relation("AssignedTasks")
+  favoriteDocuments DocumentFavorite[]
+  activities       WorkspaceActivity[]
 }
 
 model Workspace {
@@ -47,6 +49,7 @@ model Workspace {
   tasks     ActionItem[]
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
+  activities WorkspaceActivity[]
 
   @@index([ownerId])
 }
@@ -88,11 +91,13 @@ model Document {
   workspaceId String
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   folderId    String?
-  folder      Folder?   @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  folder      Folder?   @relation(fields: [folderId], references: [id], onDelete: Cascade)
   creatorId   String
   creator     User      @relation(fields: [creatorId], references: [id])
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+  favorites   DocumentFavorite[]
+  actionItems ActionItem[]
 
   @@index([workspaceId, isArchived])
 }
@@ -107,7 +112,7 @@ model File {
   workspaceId String
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   folderId    String?
-  folder      Folder?   @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  folder      Folder?   @relation(fields: [folderId], references: [id], onDelete: Cascade)
   uploaderId  String
   uploader    User      @relation(fields: [uploaderId], references: [id])
   createdAt   DateTime  @default(now())
@@ -174,11 +179,56 @@ model ActionItem {
   assignee    User?     @relation("AssignedTasks", fields: [assigneeId], references: [id], onDelete: SetNull)
   
   documentId  String?   // optional reference to where it was created
+  document    Document? @relation(fields: [documentId], references: [id], onDelete: SetNull)
   
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
   @@index([workspaceId])
   @@index([assigneeId])
+}
+
+model DocumentFavorite {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  documentId String
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@unique([userId, documentId])
+  @@index([userId])
+  @@index([documentId])
+}
+
+enum ActivityType {
+  DOCUMENT_CREATED
+  DOCUMENT_UPDATED
+  DOCUMENT_DELETED
+  DOCUMENT_RESTORED
+  DOCUMENT_RENAMED
+  DOCUMENT_MODIFIED
+  FOLDER_CREATED
+  TASK_CREATED
+  TASK_COMPLETED
+  MEMBER_JOINED
+  MEMBER_INVITED
+  MESSAGE_SENT
+}
+
+model WorkspaceActivity {
+  id          String       @id @default(uuid())
+  workspaceId String
+  workspace   Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  actorId     String
+  actor       User         @relation(fields: [actorId], references: [id], onDelete: Cascade)
+  type        ActivityType
+  entityType  String
+  entityId    String
+  metadata    Json?
+  createdAt   DateTime     @default(now())
+
+  @@index([workspaceId, createdAt(sort: Desc)])
+  @@index([actorId])
 }
 

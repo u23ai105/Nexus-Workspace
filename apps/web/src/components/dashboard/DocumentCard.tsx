@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
-import { Pencil, Copy, Download, Trash2, RotateCcw, LayoutDashboard, FileText } from 'lucide-react';
+import { Pencil, Copy, Download, Trash2, RotateCcw, LayoutDashboard, FileText, FolderInput } from 'lucide-react';
 import { WorkspaceItemCard } from './WorkspaceItemCard';
 
 export interface DocumentItem {
@@ -16,6 +16,7 @@ export interface DocumentItem {
     name?: string | null;
     email: string;
   };
+  favorites?: any[];
 }
 
 interface DocumentCardProps {
@@ -25,7 +26,11 @@ interface DocumentCardProps {
   onDuplicate: (doc: DocumentItem) => void;
   onArchiveToggle: (id: string, isArchived: boolean) => void;
   onDeletePermanent: (id: string) => void;
+  onMoveToFolder?: (id: string, type: 'DOCUMENT') => void;
+  onToggleStar?: (id: string, isStarred: boolean) => void;
   userRole?: string;
+  draggable?: boolean;
+  onDragStart?: (e: React.DragEvent) => void;
 }
 
 export const DocumentCard: React.FC<DocumentCardProps> = ({
@@ -35,7 +40,11 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
   onDuplicate,
   onArchiveToggle,
   onDeletePermanent,
+  onMoveToFolder,
+  onToggleStar,
   userRole = 'VIEWER',
+  draggable,
+  onDragStart,
 }) => {
   const [isRenaming, setIsRenaming] = useState(false);
 
@@ -86,6 +95,11 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
       <DropdownMenuItem onClick={() => onDuplicate(doc)} className="hover:bg-muted focus:bg-muted cursor-pointer">
         <Copy className="mr-2 h-4 w-4" /> Duplicate
       </DropdownMenuItem>
+      {onMoveToFolder && (
+        <DropdownMenuItem onClick={() => onMoveToFolder(doc.id, 'DOCUMENT')} className="hover:bg-muted focus:bg-muted cursor-pointer">
+          <FolderInput className="mr-2 h-4 w-4" /> Move to Folder
+        </DropdownMenuItem>
+      )}
       <DropdownMenuSeparator />
       <DropdownMenuItem onClick={handleExportMarkdown} className="hover:bg-muted focus:bg-muted cursor-pointer">
         <Download className="mr-2 h-4 w-4" /> Export as .md
@@ -129,6 +143,13 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
       dropdownMenuItems={dropdownMenuItems}
       footerLeft={`Edited ${formatDate(doc.updatedAt)}`}
       footerRight={doc.creator ? (doc.creator.name || doc.creator.email.split('@')[0]) : ''}
+      isStarred={doc.favorites && doc.favorites.length > 0}
+      onToggleStar={onToggleStar ? (e) => {
+        e.stopPropagation();
+        onToggleStar(doc.id, doc.favorites && doc.favorites.length > 0 ? true : false);
+      } : undefined}
+      draggable={draggable}
+      onDragStart={onDragStart}
     />
   );
 };

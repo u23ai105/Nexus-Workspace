@@ -9,6 +9,7 @@ import {
 import * as decoding from 'lib0/decoding'
 import { NexusEditor } from './NexusEditor'
 import { TldrawCanvas } from './TldrawCanvas'
+import { useActiveDocument } from '../../contexts/ActiveDocumentContext'
 
 interface CollaborativeEditorProps {
   documentId: string
@@ -80,6 +81,18 @@ function CollaborativeTextEditor({
   const awareness = awarenessRef.current
 
   const [isConnected, setIsConnected] = useState(false)
+  const { updateContext, clearContext } = useActiveDocument()
+
+  useEffect(() => {
+    if (workspaceId && documentId) {
+      updateContext({
+        workspaceId,
+        documentId,
+        documentTitle: documentTitle || 'Untitled Document',
+      })
+    }
+    return () => clearContext()
+  }, [workspaceId, documentId, documentTitle])
 
   useEffect(() => {
     // ── 1. Announce local user identity in Awareness ───────────────────────

@@ -1,6 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Bot, Send, User } from 'lucide-react';
+import { Bot, Send, User, TextCursorInput, FileText, Check, Copy } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import hljs from 'highlight.js';
+import 'highlight.js/styles/github-dark.css';
+import { useActiveDocument } from '../../contexts/ActiveDocumentContext';
 
 interface AIChatMessage {
   id: string;
@@ -26,6 +29,7 @@ export const WorkspaceAIChat: React.FC<WorkspaceAIChatProps> = ({
       content: 'Hi! I am your Nexus AI Assistant. I have context on your workspace documents and tasks. How can I help you today?'
     }
   ]);
+  const { context } = useActiveDocument();
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -61,7 +65,10 @@ export const WorkspaceAIChat: React.FC<WorkspaceAIChatProps> = ({
         },
         body: JSON.stringify({
           prompt: userMessage.content,
-          workspaceId
+          workspaceId,
+          documentId: context.documentId,
+          documentContext: context.documentPlainText,
+          selectedText: context.selectedText
         })
       });
 
@@ -95,7 +102,7 @@ export const WorkspaceAIChat: React.FC<WorkspaceAIChatProps> = ({
   };
 
   return (
-    <div className="w-80 md:w-96 border-l border-border/30 bg-background/95 backdrop-blur-xl flex flex-col h-full shadow-2xl relative z-20 transition-all duration-300">
+    <div className="flex flex-col h-full w-full relative z-20 bg-background">
       <div className="p-4 border-b border-border/30 flex items-center justify-between sticky top-0 bg-background/60 backdrop-blur-md z-10">
         <h3 className="font-semibold flex items-center gap-2.5 text-foreground tracking-tight">
           <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-purple-500 to-indigo-500 flex items-center justify-center shadow-lg shadow-purple-500/20">
@@ -103,6 +110,24 @@ export const WorkspaceAIChat: React.FC<WorkspaceAIChatProps> = ({
           </div>
           Workspace AI
         </h3>
+      </div>
+
+      {/* Context Indicator */}
+      <div className="px-4 py-2 border-b border-border/30 bg-muted/30 flex items-center gap-2 overflow-x-auto shadow-inner">
+        <span className="text-xs font-medium text-muted-foreground shrink-0 uppercase tracking-wider">Context:</span>
+        {context.selectedText ? (
+          <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-purple-500/10 border border-purple-500/20 text-xs font-medium text-purple-400 whitespace-nowrap">
+            <TextCursorInput size={12} />
+            Using selected text
+          </div>
+        ) : context.documentId ? (
+          <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-background border border-border/50 text-xs font-medium text-muted-foreground whitespace-nowrap shadow-sm">
+            <FileText size={12} />
+            Using: {context.documentTitle || 'Untitled Document'}
+          </div>
+        ) : (
+          <div className="text-xs text-muted-foreground/60 italic">Workspace general</div>
+        )}
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -123,13 +148,60 @@ export const WorkspaceAIChat: React.FC<WorkspaceAIChatProps> = ({
               {msg.role === 'user' ? (
                 <div className="whitespace-pre-wrap leading-relaxed">{msg.content}</div>
               ) : (
-                <div className="prose prose-sm dark:prose-invert prose-p:leading-relaxed prose-pre:bg-muted/80 prose-pre:border prose-pre:border-border/50 max-w-none text-foreground/90 prose-p:text-foreground/90 prose-headings:text-foreground prose-strong:text-foreground">
-                  <ReactMarkdown>{msg.content}</ReactMarkdown>
+                <div className="prose prose-sm dark:prose-invert prose-p:leading-relaxed prose-pre:p-0 prose-pre:bg-transparent prose-pre:border-0 max-w-none text-foreground/90 prose-p:text-foreground/90 prose-headings:text-foreground prose-strong:text-foreground">
+                  <ReactMarkdown
+                    components={{
+                      code: ({ inline, className, children, ...props }: any) => {
+                        const match = /language-(\w+)/.exec(className || '');
+                        const [copied, setCopied] = useState(false);
+                        const codeString = String(children).replace(/\n$/, '');
+
+                        const copyToClipboard = () => {
+                          navigator.clipboard.writeText(codeString);
+                          setCopied(true);
+                          setTimeout(() => setCopied(false), 2000);
+                        };
+
+                        if (!inline && match) {
+                          let highlighted = codeString;
+                          try {
+                            highlighted = hljs.highlight(codeString, { language: match[1], ignoreIllegals: true }).value;
+                          } catch (e) {}
+                          return (
+                            <div className="relative group rounded-md overflow-hidden bg-[#0d1117] border border-border/50 my-4 shadow-sm w-full">
+                              <div className="flex items-center justify-between px-3 py-1.5 bg-[#161b22] border-b border-border/50 text-[11px] font-mono text-muted-foreground">
+                                <span>{match[1]}</span>
+                                <button onClick={copyToClipboard} className="p-1 hover:bg-background/20 rounded hover:text-foreground transition-all flex items-center gap-1" aria-label="Copy code">
+                                  {copied ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
+                                  {copied ? <span className="text-emerald-500">Copied</span> : <span>Copy</span>}
+                                </button>
+                              </div>
+                              <div className="p-3 overflow-x-auto text-[13px] font-mono leading-relaxed text-[#c9d1d9]" dangerouslySetInnerHTML={{ __html: highlighted }} />
+                            </div>
+                          );
+                        }
+                        return (
+                          <code className="bg-muted px-1.5 py-0.5 rounded-sm font-mono text-xs text-purple-400" {...props}>
+                            {children}
+                          </code>
+                        );
+                      }
+                    }}
+                  >
+                    {msg.content}
+                  </ReactMarkdown>
                 </div>
               )}
             </div>
           </div>
         ))}
+        {messages.length === 1 && (
+          <div className="flex flex-wrap gap-2 mt-6 justify-end">
+            <button onClick={() => setInput('Summarize this document')} className="text-[11px] px-3 py-1.5 rounded-full border border-border/50 bg-card hover:bg-muted text-muted-foreground hover:text-foreground transition-colors shadow-sm">Summarize this document</button>
+            <button onClick={() => setInput('Extract action items')} className="text-[11px] px-3 py-1.5 rounded-full border border-border/50 bg-card hover:bg-muted text-muted-foreground hover:text-foreground transition-colors shadow-sm">Extract action items</button>
+            <button onClick={() => setInput('Rewrite this')} className="text-[11px] px-3 py-1.5 rounded-full border border-border/50 bg-card hover:bg-muted text-muted-foreground hover:text-foreground transition-colors shadow-sm">Rewrite this</button>
+          </div>
+        )}
         {isLoading && (
           <div className="flex gap-3 animate-in fade-in slide-in-from-bottom-2">
             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500/20 to-indigo-500/20 text-purple-400 border border-purple-500/20 flex items-center justify-center shrink-0 shadow-sm">

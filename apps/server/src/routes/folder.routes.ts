@@ -87,11 +87,20 @@ router.patch('/:folderId', async (req: AuthRequest, res: Response) => {
       return res.status(403).json({ error: 'Viewers cannot edit folders' });
     }
 
+    let finalParentId = folderExists.parentId;
+    if (isArchived === false && finalParentId) {
+      const parentFolder = await prisma.folder.findUnique({ where: { id: finalParentId } });
+      if (!parentFolder || parentFolder.isArchived) {
+        finalParentId = null; // Restore to root if parent is archived or missing
+      }
+    }
+
     const folder = await prisma.folder.update({
       where: { id: folderId },
       data: { 
         ...(name !== undefined && { name }),
-        ...(isArchived !== undefined && { isArchived })
+        ...(isArchived !== undefined && { isArchived }),
+        parentId: finalParentId
       }
     });
     
@@ -122,6 +131,25 @@ router.patch('/:folderId/move', async (req: AuthRequest, res: Response) => {
     }
     if (role === 'VIEWER') {
       return res.status(403).json({ error: 'Viewers cannot move folders' });
+    }
+
+    if (parentId === folderId) {
+      return res.status(400).json({ error: 'Cannot move folder into itself' });
+    }
+
+    if (parentId) {
+      // Prevent cycles: ensure parentId is not a descendant of folderId
+      let currentParentId: string | null = parentId;
+      while (currentParentId) {
+        if (currentParentId === folderId) {
+          return res.status(400).json({ error: 'Cannot move folder into its own descendant' });
+        }
+        const currentParent = await prisma.folder.findUnique({ where: { id: currentParentId }, select: { parentId: true, workspaceId: true } });
+        if (!currentParent || currentParent.workspaceId !== workspaceId) {
+          return res.status(400).json({ error: 'Invalid destination folder' });
+        }
+        currentParentId = currentParent.parentId;
+      }
     }
 
     const folder = await prisma.folder.update({

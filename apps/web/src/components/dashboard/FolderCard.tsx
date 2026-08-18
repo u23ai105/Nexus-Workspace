@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
-import { Folder, Pencil, Trash2, RotateCcw } from 'lucide-react';
+import { Folder, Pencil, Trash2, RotateCcw, FolderInput } from 'lucide-react';
 import { WorkspaceItemCard } from './WorkspaceItemCard';
 
 export interface FolderCardProps {
@@ -9,7 +9,14 @@ export interface FolderCardProps {
   onRename: (id: string, newTitle: string) => void;
   onArchiveToggle: (id: string, isArchived: boolean) => void;
   onDeletePermanent: (id: string) => void;
+  onMoveToFolder?: (id: string, type: 'FOLDER') => void;
   userRole?: string;
+  draggable?: boolean;
+  onDragStart?: (e: React.DragEvent) => void;
+  onDragOver?: (e: React.DragEvent) => void;
+  onDragLeave?: (e: React.DragEvent) => void;
+  onDrop?: (e: React.DragEvent) => void;
+  isDragTarget?: boolean;
 }
 
 export const FolderCard: React.FC<FolderCardProps> = ({
@@ -18,7 +25,14 @@ export const FolderCard: React.FC<FolderCardProps> = ({
   onRename,
   onArchiveToggle,
   onDeletePermanent,
+  onMoveToFolder,
   userRole = 'VIEWER',
+  draggable,
+  onDragStart,
+  onDragOver,
+  onDragLeave,
+  onDrop,
+  isDragTarget,
 }) => {
   const [isRenaming, setIsRenaming] = useState(false);
 
@@ -42,6 +56,11 @@ export const FolderCard: React.FC<FolderCardProps> = ({
       <DropdownMenuItem onClick={() => setIsRenaming(true)} className="hover:bg-muted focus:bg-muted cursor-pointer">
         <Pencil className="mr-2 h-4 w-4" /> Rename
       </DropdownMenuItem>
+      {onMoveToFolder && (
+        <DropdownMenuItem onClick={() => onMoveToFolder(folder.id, 'FOLDER')} className="hover:bg-muted focus:bg-muted cursor-pointer">
+          <FolderInput className="mr-2 h-4 w-4" /> Move to Folder
+        </DropdownMenuItem>
+      )}
       <DropdownMenuSeparator />
       {folder.isArchived ? (
         <>
@@ -78,6 +97,12 @@ export const FolderCard: React.FC<FolderCardProps> = ({
       dropdownMenuItems={dropdownMenuItems}
       footerLeft={`Edited ${formatDate(folder.updatedAt)}`}
       footerRight="Folder"
+      draggable={draggable}
+      onDragStart={onDragStart}
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
+      isDragTarget={isDragTarget}
     />
   );
 };

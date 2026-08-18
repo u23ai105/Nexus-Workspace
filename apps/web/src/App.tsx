@@ -1,87 +1,100 @@
 import { useState, useEffect, lazy, Suspense } from 'react'
 import useSWR from 'swr'
+import { BrowserRouter, Routes, Route, Navigate, useParams, useNavigate, useOutletContext } from 'react-router-dom'
 const CollaborativeEditor = lazy(() => import('./components/editor/CollaborativeEditor').then(m => ({ default: m.CollaborativeEditor })))
 import { DocumentDashboard } from './components/dashboard/DocumentDashboard'
 import { Home } from './components/home/Home'
-import { NotificationBell } from './components/ui/NotificationBell';
-import { PresentationBar } from './components/dashboard/PresentationBar';
+import { WorkspaceLayout } from './components/layout/WorkspaceLayout'
 import { io, Socket } from 'socket.io-client';
-
-import { GlobalChat } from './components/chat/GlobalChat';
-import { MessageCircle } from 'lucide-react';
-import type { DocumentItem } from './components/dashboard/DocumentCard'
 import './App.css'
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:4000'
 
-// Get random color HSL for visual cursor uniqueness
 function getRandomColor() {
   return `hsl(${Math.floor(Math.random() * 360)}, 85%, 60%)`
 }
 
-export default function App() {
-  // Authentication states
-  const [jwt, setJwt] = useState<string | null>(() => localStorage.getItem('nexus_jwt'))
-  const [user, setUser] = useState<{ id: string; email: string; name: string; username?: string; color: string } | null>(() => {
-    const stored = localStorage.getItem('nexus_user')
-    return stored ? JSON.parse(stored) : null
-  })
-  // Form states
-
-  const [isGlobalChatOpen, setIsGlobalChatOpen] = useState(false)
-  const [activeDmUserId, setActiveDmUserId] = useState<string | null>(null)
-  const [activeDmUser, setActiveDmUser] = useState<any>(null)
-  const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(() => localStorage.getItem('nexus_workspace_id'))
-  const [selectedDoc, setSelectedDoc] = useState<DocumentItem | null>(null)
-  const [globalSearchQuery, setGlobalSearchQuery] = useState('')
-  const [userRole, setUserRole] = useState<string>('OWNER')
-  const [isRegister, setIsRegister] = useState(false)
-  const [name, setName] = useState('')
-  const [username, setUsername] = useState('')
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [successMsg, setSuccessMsg] = useState<string | null>(null)
-  const [globalSocket, setGlobalSocket] = useState<Socket | null>(null)
-
-  // Global search shortcut
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-        e.preventDefault();
-        const searchInput = document.getElementById('global-search-input');
-        if (searchInput) searchInput.focus();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
-
-  // Sync token changes to localStorage
-  useEffect(() => {
-    if (jwt) {
-      localStorage.setItem('nexus_jwt', jwt)
-    } else {
-      localStorage.removeItem('nexus_jwt')
-    }
-  }, [jwt])
+function DocumentEditorRoute({ user, jwt, serverUrl }: any) {
+  const { workspaceId, documentId } = useParams<{ workspaceId: string; documentId: string }>();
+  const navigate = useNavigate();
+  const { userRole, globalSocket } = useOutletContext<any>();
+  const [doc, setDoc] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (user) {
-      localStorage.setItem('nexus_user', JSON.stringify(user))
-    } else {
-      localStorage.removeItem('nexus_user')
-    }
-  }, [user])
+    if (!documentId) return;
+    setLoading(true);
+    fetch(`${serverUrl}/api/documents/${documentId}`, {
+      headers: { Authorization: `Bearer ${jwt}` }
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.document) setDoc(data.document);
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error(err);
+        setLoading(false);
+      });
+  }, [documentId, jwt, serverUrl]);
 
-  useEffect(() => {
-    if (activeWorkspaceId) {
-      localStorage.setItem('nexus_workspace_id', activeWorkspaceId)
-    } else {
-      localStorage.removeItem('nexus_workspace_id')
-    }
-  }, [activeWorkspaceId])
+  if (loading) {
+    return <div className="flex-1 flex items-center justify-center h-full"><div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div></div>;
+  }
+
+  if (!doc) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center p-8 bg-background relative overflow-hidden">
+        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMSIgY3k9IjEiIHI9IjEiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsMC4wNSkiLz48L3N2Zz4=')] opacity-50" />
+        <div className="relative z-10 flex flex-col items-center max-w-md text-center">
+          <div className="w-20 h-20 rounded-3xl bg-gradient-to-tr from-rose-500/20 to-orange-500/20 flex items-center justify-center mb-6 border border-rose-500/20 shadow-[0_0_40px_rgba(244,63,94,0.1)]">
+            <svg className="w-10 h-10 text-rose-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+            </svg>
+          </div>
+          <h2 className="text-2xl font-bold text-foreground mb-3 tracking-tight">Document Not Found</h2>
+          <p className="text-muted-foreground mb-8 leading-relaxed">
+            The document you're looking for doesn't exist, has been deleted, or you don't have permission to view it.
+          </p>
+          <button
+            onClick={() => navigate(`/w/${workspaceId}`)}
+            className="px-6 py-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white font-medium transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5 flex items-center space-x-2"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+            <span>Back to Workspace</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <Suspense fallback={<div className="flex-1 flex items-center justify-center h-full"><div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div></div>}>
+      <CollaborativeEditor
+        key={documentId}
+        documentId={documentId!}
+        userId={user.id}
+        userName={user.name}
+        userColor={user.color}
+        token={jwt}
+        serverUrl={serverUrl}
+        documentTitle={doc.title}
+        documentType={doc.type}
+        initialContent={doc.textContent}
+        readOnly={userRole === 'VIEWER'}
+        globalSocket={globalSocket}
+        workspaceId={workspaceId}
+        userRole={userRole}
+        onBack={() => navigate(`/w/${workspaceId}`)}
+      />
+    </Suspense>
+  );
+}
+
+function AuthenticatedApp({ user, setUser, jwt, setJwt }: any) {
+  const [globalSocket, setGlobalSocket] = useState<Socket | null>(null);
 
   const fetcher = async ([url, token]: [string, string]) => {
     const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
@@ -91,15 +104,13 @@ export default function App() {
   }
 
   const { data: workspacesData, mutate: mutateWorkspaces } = useSWR(
-    jwt && user ? [`${BACKEND_URL}/api/workspaces`, jwt] : null,
+    [`${BACKEND_URL}/api/workspaces`, jwt],
     fetcher
   )
-
   const workspaces = workspacesData?.workspaces || []
 
-  // Auto-create default Personal Workspace if none exist
   useEffect(() => {
-    if (workspacesData && workspacesData.workspaces?.length === 0 && jwt && user) {
+    if (workspacesData && workspacesData.workspaces?.length === 0) {
       const createDefault = async () => {
         try {
           const res = await fetch(`${BACKEND_URL}/api/workspaces`, {
@@ -110,11 +121,7 @@ export default function App() {
             },
             body: JSON.stringify({ name: `${user.name}'s Workspace` }),
           })
-          const createData = await res.json()
-          if (res.ok && createData.workspace) {
-            mutateWorkspaces() // Re-fetch
-            setActiveWorkspaceId(createData.workspace.id)
-          }
+          if (res.ok) mutateWorkspaces()
         } catch (err) {
           console.error(err)
         }
@@ -123,27 +130,14 @@ export default function App() {
     }
   }, [workspacesData, jwt, user, mutateWorkspaces])
 
-  // Manage Global Socket for Workspace
   useEffect(() => {
-    if (activeWorkspaceId && jwt) {
-      const socket = io(BACKEND_URL, {
-        auth: { token: jwt },
-        transports: ['websocket']
-      });
-
-      socket.on('connect', () => {
-        socket.emit('workspace:join', activeWorkspaceId);
-      });
-
-      setGlobalSocket(socket);
-
-      return () => {
-        socket.disconnect();
-      };
-    } else {
-      setGlobalSocket(null);
-    }
-  }, [activeWorkspaceId, jwt]);
+    const socket = io(BACKEND_URL, {
+      auth: { token: jwt },
+      transports: ['websocket']
+    });
+    setGlobalSocket(socket);
+    return () => { socket.disconnect(); };
+  }, [jwt]);
 
   const handleCreateWorkspace = async (name: string) => {
     try {
@@ -155,13 +149,9 @@ export default function App() {
         },
         body: JSON.stringify({ name }),
       })
-      const data = await res.json()
-      if (res.ok && data.workspace) {
-        mutateWorkspaces({ workspaces: [data.workspace, ...workspaces] }, false)
-        setActiveWorkspaceId(data.workspace.id)
-      }
+      if (res.ok) mutateWorkspaces()
     } catch (err) {
-      console.error('Failed to create workspace', err)
+      console.error(err)
     }
   }
 
@@ -169,19 +159,11 @@ export default function App() {
     try {
       const res = await fetch(`${BACKEND_URL}/api/workspaces/${id}`, {
         method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${jwt}`,
-        },
+        headers: { Authorization: `Bearer ${jwt}` },
       })
-      if (res.ok) {
-        mutateWorkspaces({ workspaces: workspaces.filter((w: any) => w.id !== id) }, false)
-        if (activeWorkspaceId === id) {
-          setActiveWorkspaceId(null)
-          setSelectedDoc(null)
-        }
-      }
+      if (res.ok) mutateWorkspaces()
     } catch (err) {
-      console.error('Failed to delete workspace', err)
+      console.error(err)
     }
   }
 
@@ -195,23 +177,95 @@ export default function App() {
         },
         body: JSON.stringify({ name: newName })
       })
-      if (res.ok) {
-        mutateWorkspaces({
-          workspaces: workspaces.map((w: any) => (w.id === id ? { ...w, name: newName } : w))
-        }, false)
-      }
+      if (res.ok) mutateWorkspaces()
     } catch (err) {
-      console.error('Failed to rename workspace', err)
+      console.error(err)
     }
   }
 
   const handleLogout = () => {
     setJwt(null)
     setUser(null)
-    setError(null)
-    setSuccessMsg(null)
-    setSelectedDoc(null)
   }
+
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={
+          <Home 
+            workspaces={workspaces}
+            user={user}
+            onCreateWorkspace={handleCreateWorkspace}
+            onDeleteWorkspace={handleDeleteWorkspace}
+            onRenameWorkspace={handleRenameWorkspace}
+          />
+        } />
+        
+        <Route path="/w/:workspaceId" element={
+          <WorkspaceLayout 
+            user={user}
+            jwt={jwt}
+            serverUrl={BACKEND_URL}
+            workspaces={workspaces}
+            mutateWorkspaces={mutateWorkspaces}
+            onLogout={handleLogout}
+            globalSocket={globalSocket}
+          />
+        }>
+          <Route index element={
+            <DocumentDashboard 
+              token={jwt}
+              serverUrl={BACKEND_URL}
+            />
+          } />
+          <Route path="trash" element={
+            <DocumentDashboard 
+              token={jwt}
+              serverUrl={BACKEND_URL}
+              isTrashRoute={true}
+            />
+          } />
+          <Route path="d/:documentId" element={
+            <DocumentEditorRoute 
+              user={user}
+              jwt={jwt}
+              serverUrl={BACKEND_URL}
+            />
+          } />
+        </Route>
+        
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </BrowserRouter>
+  )
+}
+
+
+export default function App() {
+  const [jwt, setJwt] = useState<string | null>(() => localStorage.getItem('nexus_jwt'))
+  const [user, setUser] = useState<{ id: string; email: string; name: string; username?: string; color: string } | null>(() => {
+    const stored = localStorage.getItem('nexus_user')
+    return stored ? JSON.parse(stored) : null
+  })
+
+  const [isRegister, setIsRegister] = useState(false)
+  const [name, setName] = useState('')
+  const [username, setUsername] = useState('')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [successMsg, setSuccessMsg] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (jwt) localStorage.setItem('nexus_jwt', jwt)
+    else localStorage.removeItem('nexus_jwt')
+  }, [jwt])
+
+  useEffect(() => {
+    if (user) localStorage.setItem('nexus_user', JSON.stringify(user))
+    else localStorage.removeItem('nexus_user')
+  }, [user])
 
   const handleAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -227,17 +281,12 @@ export default function App() {
     try {
       const response = await fetch(`${BACKEND_URL}${endpoint}`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       })
 
       const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Something went wrong')
-      }
+      if (!response.ok) throw new Error(data.error || 'Something went wrong')
 
       if (isRegister) {
         setSuccessMsg('Account created successfully! Redirecting to login...')
@@ -255,7 +304,7 @@ export default function App() {
           email: data.user.email,
           name: data.user.name || email.split('@')[0],
           username: data.user.username,
-          color: getRandomColor(), // Assign random presence cursor color for session
+          color: getRandomColor(),
         })
         setLoading(false)
       }
@@ -265,235 +314,14 @@ export default function App() {
     }
   }
 
-  // ── Authenticated Mode ──────────────────────────────────────────────────
   if (jwt && user) {
-    const activeWorkspace = workspaces.find((w: any) => w.id === activeWorkspaceId)
-
-    return (
-      <div className="flex flex-col h-screen overflow-hidden bg-background text-foreground font-sans selection:bg-tint-orange/30">
-        {/* Navigation / Header */}
-        <header className="flex justify-between items-center px-6 py-3.5 bg-card/60 border-b border-border/60 backdrop-blur-md shrink-0 relative z-20 shadow-sm">
-          <div className="flex items-center space-x-3">
-            <button 
-              onClick={() => {
-                setActiveWorkspaceId(null)
-                setSelectedDoc(null)
-              }}
-              className="w-8 h-8 rounded-lg bg-foreground flex items-center justify-center hover:scale-105 transition-transform"
-              aria-label="Home"
-            >
-              <span className="font-bold text-background text-base">N</span>
-            </button>
-            <div className="flex items-center space-x-2">
-              <button 
-                onClick={() => {
-                  setActiveWorkspaceId(null)
-                  setSelectedDoc(null)
-                }}
-                className="font-semibold text-base tracking-tight text-foreground hover:text-tint-orange transition-colors"
-              >
-                Nexus
-              </button>
-              
-              {activeWorkspace && (
-                <>
-                  <span className="text-muted-foreground">/</span>
-                  <select
-                    value={activeWorkspaceId || ''}
-                    onChange={(e) => {
-                      setActiveWorkspaceId(e.target.value)
-                      setSelectedDoc(null)
-                    }}
-                    className="bg-transparent text-sm font-medium text-muted-foreground hover:text-foreground cursor-pointer focus:outline-none"
-                  >
-                    {workspaces.map((ws: any) => (
-                      <option key={ws.id} value={ws.id} className="bg-card text-foreground">
-                        {ws.name}
-                      </option>
-                    ))}
-                  </select>
-                </>
-              )}
-              {selectedDoc && (
-                <>
-                  <span className="text-muted-foreground">/</span>
-                  <span className="text-sm font-medium text-foreground truncate max-w-[200px] sm:max-w-[300px]">
-                    {selectedDoc.title}
-                  </span>
-                </>
-              )}
-            </div>
-          </div>
-
-          <div className="flex items-center space-x-3 sm:space-x-4">
-            {/* Global Search Mock */}
-            {activeWorkspace && !selectedDoc && (
-              <div className="hidden md:flex relative w-full max-w-64 min-w-[120px] items-center">
-                <svg className="absolute left-3 w-4 h-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-                <input
-                  id="global-search-input"
-                  type="text"
-                  value={globalSearchQuery}
-                  onChange={(e) => setGlobalSearchQuery(e.target.value)}
-                  placeholder="Search... (Ctrl+K)"
-                  className="w-full bg-muted/40 border border-border/50 rounded-full pl-9 pr-4 py-1.5 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary transition-all"
-                />
-              </div>
-            )}
-            <button
-              onClick={() => setIsGlobalChatOpen(!isGlobalChatOpen)}
-              className={`p-2 rounded-full transition-colors relative ${
-                isGlobalChatOpen 
-                  ? 'bg-primary/20 text-primary' 
-                  : 'text-muted-foreground hover:bg-muted/70 hover:text-foreground'
-              }`}
-              title="Global Messages"
-              aria-label="Global Messages"
-            >
-              <MessageCircle size={18} />
-            </button>
-            
-            <NotificationBell 
-              jwt={jwt} 
-              serverUrl={BACKEND_URL} 
-              onInvitationAccepted={mutateWorkspaces} 
-              onWorkspaceRemoved={(removedId: string) => {
-                mutateWorkspaces({ workspaces: workspaces.filter((w: any) => w.id !== removedId) }, false)
-                if (activeWorkspaceId === removedId) {
-                  setActiveWorkspaceId(null)
-                  setSelectedDoc(null)
-                }
-              }}
-            />
-            
-            <div className="flex items-center space-x-2 bg-muted/40 border border-border/50 px-3 py-1.5 rounded-full shrink-0">
-              <span 
-                className="w-2.5 h-2.5 rounded-full border border-background shrink-0" 
-                style={{ backgroundColor: user.color }} 
-              />
-              <span className="hidden sm:inline text-xs font-medium text-foreground truncate max-w-[100px]">{user.name}</span>
-            </div>
-
-            <button
-              onClick={handleLogout}
-              className="text-xs bg-muted/40 hover:bg-tint-red/10 hover:text-tint-red text-muted-foreground border border-border/50 p-2 sm:px-3 sm:py-1.5 rounded-md transition-all duration-200 shrink-0 flex items-center"
-              title="Log Out"
-            >
-              <span className="hidden sm:inline">Log Out</span>
-              <svg className="w-4 h-4 sm:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-              </svg>
-            </button>
-          </div>
-        </header>
-
-        {/* Body (Dashboard or Collaborative Editor) */}
-        <main className="flex-1 overflow-hidden relative z-10 flex">
-          <div className="flex-1 h-full overflow-hidden relative">
-          {selectedDoc ? (
-            <Suspense fallback={<div className="flex-1 flex items-center justify-center h-full"><div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div></div>}>
-              <CollaborativeEditor
-                key={selectedDoc.id}
-                documentId={selectedDoc.id}
-                userId={user.id}
-                userName={user.name}
-                userColor={user.color}
-                token={jwt}
-                serverUrl={BACKEND_URL}
-                documentTitle={selectedDoc.title}
-                documentType={selectedDoc.type}
-                initialContent={selectedDoc.textContent}
-                readOnly={userRole === 'VIEWER'}
-                globalSocket={globalSocket}
-                workspaceId={activeWorkspaceId || undefined}
-                userRole={userRole}
-                onBack={() => setSelectedDoc(null)}
-              />
-            </Suspense>
-          ) : activeWorkspaceId ? (
-            <DocumentDashboard
-              workspaceId={activeWorkspaceId}
-              token={jwt}
-              serverUrl={BACKEND_URL}
-              searchQuery={globalSearchQuery}
-              onSelectDocument={(doc) => setSelectedDoc(doc)}
-              onRoleChange={(role) => setUserRole(role)}
-              currentUser={user}
-              globalSocket={globalSocket}
-              onOpenDM={(user: any) => {
-                setActiveWorkspaceId(null);
-                setSelectedDoc(null);
-                setActiveDmUserId(user.id);
-                setActiveDmUser(user);
-                setIsGlobalChatOpen(true);
-              }}
-            />
-          ) : (
-            <Home 
-              workspaces={workspaces}
-              user={user}
-              onSelectWorkspace={(id) => setActiveWorkspaceId(id)}
-              onCreateWorkspace={handleCreateWorkspace}
-              onDeleteWorkspace={handleDeleteWorkspace}
-              onRenameWorkspace={handleRenameWorkspace}
-            />
-          )}
-          </div>
-          {isGlobalChatOpen && (
-            <GlobalChat
-              token={jwt}
-              serverUrl={BACKEND_URL}
-              currentUser={user}
-              onClose={() => {
-                setIsGlobalChatOpen(false)
-                setActiveDmUserId(null)
-                setActiveDmUser(null)
-              }}
-              initialActiveUserId={activeDmUserId}
-              initialActiveUser={activeDmUser}
-            />
-          )}
-        </main>
-        
-        {activeWorkspaceId && user && (
-          <PresentationBar
-            socket={globalSocket}
-            workspaceId={activeWorkspaceId}
-            userId={user.id}
-            userRole={userRole}
-            currentDocumentId={selectedDoc?.id || ''}
-            onNavigateToDocument={(docId) => {
-              // We need to fetch the document to select it
-              fetch(`${BACKEND_URL}/api/documents/${docId}`, {
-                headers: { Authorization: `Bearer ${jwt}` }
-              })
-                .then(res => res.json())
-                .then(data => {
-                  if (data.document) {
-                    setSelectedDoc(data.document);
-                  }
-                })
-                .catch(console.error);
-            }}
-          />
-        )}
-      </div>
-    )
+    return <AuthenticatedApp user={user} setUser={setUser} jwt={jwt} setJwt={setJwt} />
   }
 
-  // ── Anonymous/Authentication Mode ───────────────────────────────────────
+  // Anonymous Mode (Login/Register Form)
   return (
     <div className="min-h-screen w-full flex bg-[#030305] text-slate-100 font-sans selection:bg-purple-500/30">
-      
-      {/* Left Panel - Visual/Brand (Hidden on Mobile) */}
       <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-[#0A0A0F] border-r border-white/5 items-center justify-center p-12">
-        {/* Ambient background glows */}
-        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-purple-600/20 blur-[120px] mix-blend-screen pointer-events-none" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-indigo-600/20 blur-[120px] mix-blend-screen pointer-events-none" />
-        
-        {/* Subtle grid overlay */}
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMSIgY3k9IjEiIHI9IjEiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsMC4wMykiLz48L3N2Zz4=')] [mask-image:radial-gradient(ellipse_at_center,black_40%,transparent_80%)] opacity-60" />
 
         <div className="relative z-10 w-full max-w-lg">
@@ -507,7 +335,6 @@ export default function App() {
             Nexus Workspace combines real-time editing, dynamic knowledge bases, and AI agents into a single, unified environment for high-performing teams.
           </p>
 
-          {/* Decorative glass card */}
           <div className="backdrop-blur-xl bg-white/[0.02] border border-white/10 rounded-2xl p-6 shadow-2xl flex items-start space-x-4 transform transition-all duration-700 hover:-translate-y-2 hover:bg-white/[0.04]">
             <div className="w-10 h-10 rounded-full bg-indigo-500/20 flex items-center justify-center shrink-0 border border-indigo-500/30">
               <svg className="w-5 h-5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -522,9 +349,7 @@ export default function App() {
         </div>
       </div>
 
-      {/* Right Panel - Form */}
       <div className="w-full lg:w-1/2 flex items-center justify-center p-8 sm:p-12 relative overflow-y-auto">
-        {/* Mobile branding (visible only on small screens) */}
         <div className="absolute top-8 left-8 lg:hidden flex items-center space-x-3">
           <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-purple-500 to-indigo-500 flex items-center justify-center shadow-lg shadow-purple-500/30">
             <span className="font-bold text-white text-sm">N</span>
@@ -609,7 +434,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* Status Messages */}
             <div className="min-h-[24px]">
               {error && (
                 <div className="animate-in fade-in slide-in-from-top-1 text-[13px] font-medium text-red-400 flex items-center space-x-2 bg-red-400/10 px-3 py-2.5 rounded-lg border border-red-400/20">
@@ -631,7 +455,6 @@ export default function App() {
               disabled={loading}
               className="w-full relative group overflow-hidden bg-white/5 hover:bg-white/10 border border-white/10 text-white font-medium py-3.5 rounded-xl transition-all duration-300 shadow-[0_0_20px_rgba(168,85,247,0.15)] hover:shadow-[0_0_30px_rgba(168,85,247,0.25)] hover:border-purple-500/30 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none mt-2 flex items-center justify-center"
             >
-              {/* Animated gradient background on hover */}
               <div className="absolute inset-0 bg-gradient-to-r from-purple-500/20 via-indigo-500/20 to-purple-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
               
               <span className="relative z-10 flex items-center">
@@ -652,7 +475,6 @@ export default function App() {
             </button>
           </form>
 
-          {/* Toggle button */}
           <div className="mt-8 text-center">
             <button
               onClick={() => {

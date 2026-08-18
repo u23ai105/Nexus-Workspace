@@ -5,6 +5,8 @@ import {
   createDocument,
   updateDocument,
   deleteDocument,
+  favoriteDocument,
+  unfavoriteDocument,
 } from '../controllers/document.controller';
 import { authenticateJWT } from '../middlewares/auth.middleware';
 
@@ -27,5 +29,11 @@ router.patch('/:id', updateDocument);
 
 // Route: DELETE /api/documents/:id -> permanently delete
 router.delete('/:id', deleteDocument);
+
+// Route: POST /api/documents/:id/favorite -> favorite document
+router.post('/:id/favorite', favoriteDocument);
+
+// Route: DELETE /api/documents/:id/favorite -> unfavorite document
+router.delete('/:id/favorite', unfavoriteDocument);
 
 export default router;

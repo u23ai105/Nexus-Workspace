@@ -43,6 +43,12 @@ export default {
   			border: 'rgb(var(--border) / <alpha-value>)',
   			input: 'rgb(var(--input) / <alpha-value>)',
   			ring: 'rgb(var(--ring) / <alpha-value>)',
+            tint: {
+                orange: 'rgb(var(--tint-orange) / <alpha-value>)',
+                blue: 'rgb(var(--tint-blue) / <alpha-value>)',
+                red: 'rgb(var(--tint-red) / <alpha-value>)',
+                green: 'rgb(var(--tint-green) / <alpha-value>)'
+            }
   		}
   	}
   },

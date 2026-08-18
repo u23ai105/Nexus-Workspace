@@ -13,12 +13,13 @@ import { prisma } from '@nexus/database';
 const FRONTEND_ORIGIN = process.env.CLIENT_URL || 'http://localhost:5173';
 
 const saveTimers = new Map<string, NodeJS.Timeout>();
+const lastActivityLog = new Map<string, number>();
 
 // Presentation State Tracking
 // Key: workspaceId, Value: { presenterId: string, role: string, documentId: string, peerId: string }
 const activePresentations = new Map<string, { presenterId: string; role: string; documentId: string; peerId?: string }>();
 
-const scheduleSaveToDb = (roomName: string, ydoc: Y.Doc) => {
+const scheduleSaveToDb = (roomName: string, ydoc: Y.Doc, userId?: string) => {
   if (saveTimers.has(roomName)) return;
 
   const timer = setTimeout(async () => {
@@ -26,11 +27,34 @@ const scheduleSaveToDb = (roomName: string, ydoc: Y.Doc) => {
     const documentId = roomName.replace('document:', '');
     try {
       const state = Y.encodeStateAsUpdate(ydoc);
-      await prisma.document.update({
+      const updatedDoc = await prisma.document.update({
         where: { id: documentId },
         data: { yjsState: Buffer.from(state) },
+        select: { workspaceId: true, title: true }
       });
       console.log(`[Yjs] Auto-saved snapshot to DB for ${roomName} (${state.length} bytes)`);
+
+      // Log activity if userId is provided and we haven't logged one recently
+      if (userId && userId !== 'unknown' && updatedDoc) {
+        const activityKey = `${documentId}-${userId}`;
+        const lastLogged = lastActivityLog.get(activityKey) || 0;
+        const now = Date.now();
+        // Throttle to 5 minutes (300000 ms) to avoid spamming while still being responsive for the user testing it now
+        if (now - lastLogged > 300000) {
+          lastActivityLog.set(activityKey, now);
+          await prisma.workspaceActivity.create({
+            data: {
+              workspaceId: updatedDoc.workspaceId,
+              actorId: userId,
+              type: 'DOCUMENT_MODIFIED',
+              entityType: 'Document',
+              entityId: documentId,
+              metadata: { title: updatedDoc.title }
+            }
+          });
+          console.log(`[Yjs] Logged DOCUMENT_MODIFIED activity for user ${userId} on doc ${documentId}`);
+        }
+      }
     } catch (err) {
       console.error(`[Yjs] Failed to auto-save snapshot for ${roomName}:`, err);
     }
@@ -292,8 +316,10 @@ export const createSocketServer = (server: HttpServer) => {
         const uint8Array = new Uint8Array(data);
         Y.applyUpdate(room.ydoc, uint8Array, socket.id);
 
+        const userId = socket.data.user?.id;
+
         // Schedule debounce save to PostgreSQL
-        scheduleSaveToDb(currentRoomName, room.ydoc);
+        scheduleSaveToDb(currentRoomName, room.ydoc, userId);
 
         // Broadcast the update to all other clients in the room
         socket.to(currentRoomName).emit('update', data);

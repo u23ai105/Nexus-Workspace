@@ -63,6 +63,9 @@ export const getDocuments = async (req: AuthRequest, res: Response) => {
             name: true,
             email: true,
           }
+        },
+        favorites: {
+          where: { userId }
         }
       },
       orderBy: { updatedAt: 'desc' },
@@ -152,6 +155,17 @@ export const createDocument = async (req: AuthRequest, res: Response) => {
       },
     });
 
+    await prisma.workspaceActivity.create({
+      data: {
+        workspaceId,
+        actorId: userId,
+        type: 'DOCUMENT_CREATED',
+        entityType: 'Document',
+        entityId: document.id,
+        metadata: { title: document.title }
+      }
+    });
+
     res.status(201).json({ document });
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -188,14 +202,49 @@ export const updateDocument = async (req: AuthRequest, res: Response) => {
       return res.status(403).json({ error: 'Viewers cannot edit documents' });
     }
 
+    // If moving to a new folder, verify the folder exists in the same workspace
+    if (folderId !== undefined && folderId !== null) {
+      const folder = await prisma.folder.findUnique({ where: { id: folderId } });
+      if (!folder || folder.workspaceId !== existing.workspaceId) {
+        return res.status(400).json({ error: 'Invalid destination folder' });
+      }
+    }
+
+    let finalFolderId = folderId !== undefined ? folderId : existing.folderId;
+    if (isArchived === false && finalFolderId) {
+      const parentFolder = await prisma.folder.findUnique({ where: { id: finalFolderId } });
+      if (!parentFolder || parentFolder.isArchived) {
+        finalFolderId = null; // Restore to root if parent is archived or missing
+      }
+    }
+
     const updated = await prisma.document.update({
       where: { id },
       data: {
         ...(title !== undefined && { title: title.trim() }),
         ...(isArchived !== undefined && { isArchived }),
         ...(textContent !== undefined && { textContent }),
-        ...(folderId !== undefined && { folderId }),
+        folderId: finalFolderId,
       },
+    });
+
+    const type = isArchived !== undefined ? (isArchived ? 'DOCUMENT_DELETED' : 'DOCUMENT_RESTORED') 
+                 : (title !== undefined && title.trim() !== existing.title ? 'DOCUMENT_RENAMED' 
+                 : (textContent !== undefined ? 'DOCUMENT_MODIFIED' : 'DOCUMENT_UPDATED'));
+
+    const metadata = type === 'DOCUMENT_RENAMED' 
+                     ? { oldTitle: existing.title, newTitle: updated.title } 
+                     : { title: updated.title };
+
+    await prisma.workspaceActivity.create({
+      data: {
+        workspaceId: existing.workspaceId,
+        actorId: userId,
+        type,
+        entityType: 'Document',
+        entityId: id,
+        metadata
+      }
     });
 
     res.status(200).json({ document: updated });
@@ -233,9 +282,72 @@ export const deleteDocument = async (req: AuthRequest, res: Response) => {
     }
 
     await prisma.document.delete({ where: { id } });
+    
+    await prisma.workspaceActivity.create({
+      data: {
+        workspaceId: existing.workspaceId,
+        actorId: userId,
+        type: 'DOCUMENT_DELETED',
+        entityType: 'Document',
+        entityId: id,
+        metadata: { title: existing.title }
+      }
+    });
+
     res.status(200).json({ message: 'Document permanently deleted' });
   } catch (error) {
     console.error("Error deleting document:", error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
+
+// POST /api/documents/:id/favorite -> Favorite document
+export const favoriteDocument = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+    const { id } = req.params;
+    
+    // Verify document exists and user has access to its workspace
+    const document = await prisma.document.findUnique({
+      where: { id },
+      include: { workspace: true }
+    });
+    if (!document) return res.status(404).json({ error: 'Document not found' });
+    
+    const role = await getUserRole(userId, document.workspaceId);
+    if (!role) return res.status(403).json({ error: 'Forbidden' });
+    
+    await prisma.documentFavorite.upsert({
+      where: {
+        userId_documentId: { userId, documentId: id }
+      },
+      update: {},
+      create: { userId, documentId: id }
+    });
+    
+    res.status(200).json({ message: 'Favorited' });
+  } catch (error) {
+    console.error("Error favoriting document:", error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// DELETE /api/documents/:id/favorite -> Unfavorite document
+export const unfavoriteDocument = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+    const { id } = req.params;
+    
+    await prisma.documentFavorite.deleteMany({
+      where: { userId, documentId: id }
+    });
+    
+    res.status(200).json({ message: 'Unfavorited' });
+  } catch (error) {
+    console.error("Error unfavoriting document:", error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+

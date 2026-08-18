@@ -276,12 +276,12 @@ export const WorkspaceChat: React.FC<WorkspaceChatProps> = ({
   };
 
   return (
-    <div className="w-80 md:w-96 border-l border-border/30 bg-background/95 backdrop-blur-xl flex flex-col h-full shadow-2xl relative z-40 transition-all duration-300">
+    <div className="flex flex-col h-full w-full relative z-40 bg-background">
       {/* Header */}
       <div className="p-4 border-b border-border/30 flex items-center justify-between sticky top-0 bg-background/60 backdrop-blur-md z-10 shrink-0">
         <div className="font-semibold flex items-center gap-2.5 text-foreground tracking-tight">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-blue-500 to-indigo-500 flex items-center justify-center shadow-lg shadow-blue-500/20">
-            <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center">
+            <svg className="w-4 h-4 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
             </svg>
           </div>
@@ -299,7 +299,7 @@ export const WorkspaceChat: React.FC<WorkspaceChatProps> = ({
             <div className="w-5 h-5 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
           </div>
         ) : messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-slate-500 space-y-2 opacity-80">
+          <div className="flex flex-col items-center justify-center h-full text-muted-foreground space-y-2 opacity-80">
             <svg className="w-10 h-10 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z" />
             </svg>
@@ -312,19 +312,30 @@ export const WorkspaceChat: React.FC<WorkspaceChatProps> = ({
             const showHeader = i === 0 || messages[i-1].senderId !== msg.senderId || (new Date(msg.createdAt).getTime() - new Date(messages[i-1].createdAt).getTime() > 60000 * 5);
             
             return (
-              <div key={msg.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
+              <div key={msg.id} className={`flex flex-col group ${isMe ? 'items-end' : 'items-start'}`}>
                 {showHeader && (
-                  <div className={`flex items-center gap-1.5 mb-1 mt-2 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
-                    <span className="text-[11px] font-medium text-muted-foreground">{isMe ? 'You' : (msg.sender.username ? `@${msg.sender.username}` : msg.sender.name || 'User')}</span>
-                    <span className="text-[10px] text-muted-foreground/70">{new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                  <div className={`flex items-baseline gap-2 mb-1 mt-3 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
+                    <span className="text-[11px] font-medium text-foreground">{isMe ? 'You' : (msg.sender.username ? `@${msg.sender.username}` : msg.sender.name || 'User')}</span>
+                    <span className="text-[10px] text-muted-foreground">{new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                   </div>
                 )}
-                <div className={`px-4 py-2.5 rounded-2xl max-w-[90%] text-sm break-words shadow-sm ${
+                <div className={`relative px-3 py-2 rounded-xl max-w-[90%] text-sm break-words shadow-sm flex items-center gap-2 ${
                   isMe 
-                    ? 'bg-gradient-to-tr from-purple-600 to-indigo-600 text-white rounded-tr-sm' 
-                    : 'bg-card/80 backdrop-blur-sm border border-border/50 text-foreground rounded-tl-sm'
+                    ? 'bg-primary text-primary-foreground rounded-tr-sm' 
+                    : 'bg-muted/50 text-foreground rounded-tl-sm'
                 }`}>
-                  {renderMessageContent(msg.content)}
+                  <div className="flex-1">{renderMessageContent(msg.content)}</div>
+                  {/* Hover Actions */}
+                  <div className={`absolute top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 ${isMe ? 'right-[100%] mr-2' : 'left-[100%] ml-2'}`}>
+                    <button 
+                      onClick={() => navigator.clipboard.writeText(msg.content)} 
+                      className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground bg-background/80 shadow-sm border border-border/50 backdrop-blur-sm" 
+                      title="Copy message"
+                      aria-label="Copy message"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                    </button>
+                  </div>
                 </div>
               </div>
             );
@@ -337,7 +348,7 @@ export const WorkspaceChat: React.FC<WorkspaceChatProps> = ({
       <div className="p-4 border-t border-border/30 bg-background/60 backdrop-blur-md relative">
         {/* Mentions Dropdown */}
         {showMentionMenu && filteredMembers.length > 0 && (
-          <div className="absolute bottom-full left-4 right-4 mb-2 bg-card border border-border/50 rounded-xl shadow-xl overflow-hidden z-50 max-h-48 overflow-y-auto">
+          <div className="absolute bottom-full left-4 right-4 mb-2 bg-popover border border-border rounded-xl shadow-lg overflow-hidden z-50 max-h-48 overflow-y-auto">
             {filteredMembers.map(m => (
               <button
                 key={m.id}
@@ -345,11 +356,11 @@ export const WorkspaceChat: React.FC<WorkspaceChatProps> = ({
                 onMouseDown={(e) => { e.preventDefault(); insertAutocomplete(`@${m.user.username || m.user.name?.replace(/\s+/g, '')}`); }}
                 className="w-full text-left px-3 py-2 hover:bg-muted/80 flex items-center gap-3 transition-colors border-b border-border/30 last:border-0"
               >
-                <div className="w-7 h-7 rounded-full bg-indigo-500/10 text-indigo-500 border border-indigo-500/20 flex items-center justify-center text-xs font-bold shrink-0">
+                <div className="w-7 h-7 rounded-full bg-primary/10 text-primary border border-primary/20 flex items-center justify-center text-xs font-bold shrink-0">
                   {m.user.username?.charAt(0).toUpperCase()}
                 </div>
                 <div className="flex flex-col overflow-hidden">
-                  <span className="text-sm text-foreground font-medium truncate">{m.user.username}</span>
+                  <span className="text-sm text-popover-foreground font-medium truncate">{m.user.username}</span>
                   <span className="text-[11px] text-muted-foreground truncate">{m.user.name}</span>
                 </div>
               </button>
@@ -359,7 +370,7 @@ export const WorkspaceChat: React.FC<WorkspaceChatProps> = ({
 
         {/* Documents & Files Dropdown */}
         {showDocMenu && (filteredDocs.length > 0 || filteredFiles.length > 0) && (
-          <div className="absolute bottom-full left-4 right-4 mb-2 bg-card border border-border/50 rounded-xl shadow-xl overflow-hidden z-50 max-h-48 overflow-y-auto">
+          <div className="absolute bottom-full left-4 right-4 mb-2 bg-popover border border-border rounded-xl shadow-lg overflow-hidden z-50 max-h-48 overflow-y-auto">
             {filteredDocs.map(d => (
               <button
                 key={d.id}
@@ -373,8 +384,8 @@ export const WorkspaceChat: React.FC<WorkspaceChatProps> = ({
                   </svg>
                 </div>
                 <div className="flex flex-col overflow-hidden">
-                  <span className="text-sm text-foreground font-medium truncate">{d.title}</span>
-                  <span className="text-[11px] text-blue-500">Document</span>
+                  <span className="text-sm text-popover-foreground font-medium truncate">{d.title}</span>
+                  <span className="text-[11px] text-muted-foreground">Document</span>
                 </div>
               </button>
             ))}
@@ -391,8 +402,8 @@ export const WorkspaceChat: React.FC<WorkspaceChatProps> = ({
                   </svg>
                 </div>
                 <div className="flex flex-col overflow-hidden">
-                  <span className="text-sm text-foreground font-medium truncate">{f.filename}</span>
-                  <span className="text-[11px] text-green-500">File ({Math.round(f.size / 1024)} KB)</span>
+                  <span className="text-sm text-popover-foreground font-medium truncate">{f.filename}</span>
+                  <span className="text-[11px] text-muted-foreground">File ({Math.round(f.size / 1024)} KB)</span>
                 </div>
               </button>
             ))}
@@ -406,12 +417,14 @@ export const WorkspaceChat: React.FC<WorkspaceChatProps> = ({
             value={newMessage}
             onChange={handleInputChange}
             placeholder="Type a message... (@user or /doc)"
-            className="w-full bg-muted/50 hover:bg-muted/80 border border-border/50 rounded-2xl pl-4 pr-12 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:bg-background transition-all shadow-sm text-foreground placeholder:text-muted-foreground/70"
+            className="w-full bg-muted/50 hover:bg-muted/80 border border-border/50 rounded-xl pl-4 pr-12 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-primary/50 focus:bg-background transition-all shadow-sm text-foreground placeholder:text-muted-foreground/70"
+            aria-label="Message input"
           />
           <button 
             type="submit" 
             disabled={!newMessage.trim()}
-            className="absolute right-2 p-2 rounded-xl text-white bg-gradient-to-tr from-purple-600 to-indigo-600 shadow-sm shadow-purple-500/20 hover:shadow-purple-500/40 disabled:opacity-50 disabled:shadow-none hover:-translate-y-0.5 active:translate-y-0 transition-all disabled:transform-none"
+            className="absolute right-2 p-1.5 rounded-lg text-primary-foreground bg-primary shadow-sm hover:bg-primary/90 disabled:opacity-50 disabled:shadow-none hover:-translate-y-[1px] active:translate-y-0 transition-all disabled:transform-none"
+            aria-label="Send message"
           >
             <svg className="w-4 h-4 ml-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />

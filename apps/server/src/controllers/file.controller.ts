@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { z } from 'zod';
 import { prisma } from '@nexus/database';
 import { AuthRequest } from '../middlewares/auth.middleware';
 import { createClient } from '@supabase/supabase-js';
@@ -172,6 +173,12 @@ export const deleteFile = async (req: AuthRequest, res: Response) => {
   }
 };
 
+const updateFileSchema = z.object({
+  filename: z.string().min(1, "Filename cannot be empty").optional(),
+  isArchived: z.boolean().optional(),
+  folderId: z.string().nullable().optional(),
+});
+
 // PATCH /files/:id
 export const updateFile = async (req: AuthRequest, res: Response) => {
   try {
@@ -179,7 +186,7 @@ export const updateFile = async (req: AuthRequest, res: Response) => {
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
     const { id } = req.params;
-    const { isArchived } = req.body;
+    const { filename, isArchived, folderId } = updateFileSchema.parse(req.body);
 
     const file = await prisma.file.findUnique({ where: { id } });
     if (!file) {
@@ -191,13 +198,36 @@ export const updateFile = async (req: AuthRequest, res: Response) => {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
+    // If moving to a new folder, verify the folder exists in the same workspace
+    if (folderId !== undefined && folderId !== null) {
+      const folder = await prisma.folder.findUnique({ where: { id: folderId } });
+      if (!folder || folder.workspaceId !== file.workspaceId) {
+        return res.status(400).json({ error: 'Invalid destination folder' });
+      }
+    }
+
+    let finalFolderId = folderId !== undefined ? folderId : file.folderId;
+    if (isArchived === false && finalFolderId) {
+      const parentFolder = await prisma.folder.findUnique({ where: { id: finalFolderId } });
+      if (!parentFolder || parentFolder.isArchived) {
+        finalFolderId = null; // Restore to root if parent is archived or missing
+      }
+    }
+
     const updatedFile = await prisma.file.update({
       where: { id },
-      data: { isArchived }
+      data: { 
+        ...(filename !== undefined && { filename: filename.trim() }),
+        ...(isArchived !== undefined && { isArchived }),
+        folderId: finalFolderId
+      }
     });
 
     res.status(200).json({ file: updatedFile });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: error.issues });
+    }
     console.error("Error updating file:", error);
     res.status(500).json({ error: 'Internal server error' });
   }

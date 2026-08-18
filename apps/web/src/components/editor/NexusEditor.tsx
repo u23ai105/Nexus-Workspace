@@ -22,6 +22,7 @@ import { KanbanExtension } from './kanbanExtension'
 import { PresentationBanner } from './PresentationBanner'
 import { ExportMenu } from './ExportMenu'
 import { AIFloatingMenu } from './AIFloatingMenu'
+import { useActiveDocument } from '../../contexts/ActiveDocumentContext'
 // Dedicated CSS for remote-user carets, name labels, and authorship highlights
 import './collaboration-cursors.css'
 
@@ -403,6 +404,10 @@ export function NexusEditor({ ydoc, awareness, user, documentTitle, readOnly = f
     return true
   }
 
+  const { updateContext } = useActiveDocument()
+  const documentUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const selectionUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
   const editor = useEditor({ 
     extensions,
     editorProps: {
@@ -424,6 +429,20 @@ export function NexusEditor({ ydoc, awareness, user, documentTitle, readOnly = f
       }
     },
     editable: !readOnly,
+    onUpdate: ({ editor }) => {
+      if (documentUpdateTimeoutRef.current) clearTimeout(documentUpdateTimeoutRef.current)
+      documentUpdateTimeoutRef.current = setTimeout(() => {
+        updateContext({ documentPlainText: editor.getText() })
+      }, 500)
+    },
+    onSelectionUpdate: ({ editor }) => {
+      if (selectionUpdateTimeoutRef.current) clearTimeout(selectionUpdateTimeoutRef.current)
+      selectionUpdateTimeoutRef.current = setTimeout(() => {
+        const { from, to } = editor.state.selection
+        const selectedText = from !== to ? editor.state.doc.textBetween(from, to, ' ') : null
+        updateContext({ selectedText })
+      }, 100)
+    }
   })
 
   // Lock editor when following someone
@@ -460,20 +479,26 @@ export function NexusEditor({ ydoc, awareness, user, documentTitle, readOnly = f
 
         {/* Unified Editor Header (Merged Toolbar) */}
         <div className="w-full h-12 flex items-center px-4 sm:px-6">
-          {/* Left: Back Button */}
-          {onBack && (
-            <button
-              onClick={() => {
-                if (saveStatus === 'saving' && !confirm('Your recent edits are currently syncing to cloud. Leave anyway?')) return;
-                onBack();
-              }}
-              className="flex items-center space-x-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors shrink-0 mr-4"
-              title="Back to Dashboard"
-            >
-              <span>←</span>
-              <span className="hidden sm:inline">Back</span>
-            </button>
-          )}
+          {/* Left: Breadcrumbs */}
+          <div className="flex items-center space-x-2 text-sm font-medium text-muted-foreground shrink-0 mr-4">
+            {onBack && (
+              <>
+                <button
+                  onClick={() => {
+                    if (saveStatus === 'saving' && !confirm('Your recent edits are currently syncing to cloud. Leave anyway?')) return;
+                    onBack();
+                  }}
+                  className="hover:text-foreground transition-colors flex items-center gap-1.5"
+                  title="Back to Dashboard"
+                >
+                  <svg className="w-4 h-4 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
+                  <span className="hidden sm:inline">Documents</span>
+                </button>
+                <span className="opacity-50">/</span>
+              </>
+            )}
+            <span className="text-foreground truncate max-w-[200px]" title={documentTitle}>{documentTitle}</span>
+          </div>
 
           {/* Center/Left: Formatting Toolbar */}
           <div className="flex-1 overflow-x-auto no-scrollbar flex items-center">

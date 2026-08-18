@@ -1,4 +1,6 @@
 import React, { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { CommandPalette } from '../ui/CommandPalette'
 
 interface Workspace {
   id: string
@@ -10,16 +12,16 @@ interface Workspace {
 interface HomeProps {
   workspaces: Workspace[]
   user: { name: string; email: string }
-  onSelectWorkspace: (id: string) => void
   onCreateWorkspace: (name: string) => Promise<void>
   onDeleteWorkspace: (id: string) => Promise<void>
   onRenameWorkspace: (id: string, newName: string) => Promise<void>
 }
 
-export function Home({ workspaces, user, onSelectWorkspace, onCreateWorkspace, onDeleteWorkspace, onRenameWorkspace }: HomeProps) {
+export function Home({ workspaces, user, onCreateWorkspace, onDeleteWorkspace, onRenameWorkspace }: HomeProps) {
   const [isCreating, setIsCreating] = useState(false)
   const [newWorkspaceName, setNewWorkspaceName] = useState('')
   const [loading, setLoading] = useState(false)
+  const navigate = useNavigate()
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -38,6 +40,10 @@ export function Home({ workspaces, user, onSelectWorkspace, onCreateWorkspace, o
 
   return (
     <div className="h-full w-full bg-grid-pattern bg-background text-foreground overflow-y-auto">
+      <CommandPalette 
+        workspaces={workspaces}
+        workspaceId={null}
+      />
       <div className="relative z-10 max-w-6xl mx-auto px-8 py-16">
         <header className="mb-16">
           <h1 className="text-4xl font-semibold tracking-tight mb-3">Welcome back, {user.name}</h1>
@@ -50,7 +56,7 @@ export function Home({ workspaces, user, onSelectWorkspace, onCreateWorkspace, o
             return (
               <div
                 key={ws.id}
-                onClick={() => onSelectWorkspace(ws.id)}
+                onClick={() => navigate(`/w/${ws.id}`)}
                 className="premium-card group cursor-pointer relative p-6 h-48 flex flex-col justify-between"
               >
                 {/* Glowing subtle gradient on hover */}

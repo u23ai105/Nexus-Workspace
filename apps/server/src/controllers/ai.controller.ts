@@ -60,7 +60,7 @@ export const workspaceChat = async (req: AuthRequest, res: Response) => {
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-    const { prompt, workspaceId } = req.body;
+    const { prompt, workspaceId, documentId, documentContext, selectedText } = req.body;
 
     if (!process.env.GEMINI_API_KEY) {
       return res.status(500).json({ error: 'GEMINI_API_KEY is not configured on the server.' });
@@ -70,10 +70,11 @@ export const workspaceChat = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: 'Prompt and workspaceId are required.' });
     }
 
-    // Verify workspace access
+    // Verify workspace access and get general context
     const workspace = await prisma.workspace.findUnique({
       where: { id: workspaceId },
       include: {
+        members: { where: { userId } },
         documents: {
           select: { title: true, textContent: true }
         },
@@ -84,30 +85,62 @@ export const workspaceChat = async (req: AuthRequest, res: Response) => {
     });
 
     if (!workspace) return res.status(404).json({ error: 'Workspace not found' });
+    if (workspace.members.length === 0) return res.status(403).json({ error: 'Unauthorized workspace access' });
+
+    // Validate Document if provided
+    let activeDocumentTitle = '';
+    if (documentId) {
+      const doc = await prisma.document.findFirst({
+        where: { id: documentId, workspaceId }
+      });
+      if (!doc) return res.status(404).json({ error: 'Document not found or access denied' });
+      activeDocumentTitle = doc.title;
+    }
 
     if (!genAI || !model) {
       genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
       model = genAI.getGenerativeModel({ model: "gemini-3.5-flash" });
     }
 
-    // Prepare context
-    let contextStr = 'Workspace Context:\\n';
+    // Build structured prompt
+    const systemInstruction = `You are Nexus Copilot, an AI assistant for a collaborative workspace called "Nexus".
+You are helping the user with their workspace context. Follow their instructions clearly and professionally.
+Return formatting in standard Markdown. When providing code blocks, explicitly state the language for syntax highlighting.`;
+
+    let workspaceContextStr = '';
     workspace.documents.forEach((doc, idx) => {
-      contextStr += `Document ${idx+1} [${doc.title}]:\\n${doc.textContent ? doc.textContent.substring(0, 500) : ''}...\\n\\n`;
+      workspaceContextStr += `- Document "${doc.title}":\n  ${doc.textContent ? doc.textContent.substring(0, 200).replace(/\n/g, ' ') : 'Empty'}...\n`;
     });
-    contextStr += '\\nWorkspace Tasks:\\n';
-    workspace.tasks.forEach((task, idx) => {
-      contextStr += `- [${task.status}] ${task.priority} priority: ${task.content}\\n`;
+    workspaceContextStr += '\nWorkspace Tasks:\n';
+    workspace.tasks.forEach((task) => {
+      workspaceContextStr += `- [${task.status}] ${task.priority}: ${task.content}\n`;
     });
 
-    const fullPrompt = `You are a helpful AI assistant for a collaborative workspace called "Nexus".
-You have access to the following workspace context (summaries of documents and tasks).
-Answer the user's question or help them with their request using this context.
-If the answer is not in the context, use your general knowledge but mention you are doing so.
+    let currentDocumentSection = '';
+    if (documentId && activeDocumentTitle) {
+      currentDocumentSection = `\n[CURRENT DOCUMENT]\nTitle: ${activeDocumentTitle}\n`;
+    }
 
-${contextStr}
+    let selectedTextSection = '';
+    if (selectedText) {
+      // Bounded selected text
+      selectedTextSection = `\n[SELECTED TEXT (Highest Priority Context)]\n"""\n${selectedText.substring(0, 5000)}\n"""\n`;
+    }
 
-User Prompt: ${prompt}`;
+    let documentContextSection = '';
+    if (documentContext && !selectedText) {
+      // Bounded document text if no selection
+      documentContextSection = `\n[DOCUMENT CONTEXT (Unsaved Live Editor Content)]\n"""\n${documentContext.substring(0, 10000)}\n"""\n`;
+    }
+
+    const fullPrompt = `[SYSTEM INSTRUCTIONS]
+${systemInstruction}
+
+[WORKSPACE CONTEXT]
+${workspaceContextStr.substring(0, 4000)}
+${currentDocumentSection}${selectedTextSection}${documentContextSection}
+[USER REQUEST]
+${prompt}`;
 
     const result = await model.generateContent(fullPrompt);
     const responseText = result.response.text();
