@@ -7,10 +7,10 @@ services:
     env: node
     region: oregon # Or your preferred region (e.g., frankfurt, singapore)
     plan: free # Change to 'starter' for a production environment without 15-minute sleep
-    rootDir: apps/server
-    # Install pnpm, then install dependencies, then build typescript
-    buildCommand: npm install -g pnpm && pnpm install && pnpm run build
-    startCommand: pnpm run start
+    # Remove rootDir to ensure Render has access to the full pnpm workspace
+    # Install pnpm, install all deps, then build just the server and its dependencies
+    buildCommand: npm install -g pnpm && pnpm install && npx turbo run build --filter=server
+    startCommand: cd apps/server && pnpm run start
     envVars:
       - key: NODE_ENV
         value: production
@@ -31,10 +31,10 @@ services:
   - type: web
     name: nexus-web
     env: static
-    rootDir: apps/web
-    # Install pnpm, then install dependencies, then build Vite site
-    buildCommand: npm install -g pnpm && pnpm install && pnpm run build
-    staticPublishPath: dist
+    # Remove rootDir to ensure Render has access to the full pnpm workspace
+    # Install pnpm, install all deps, then build just the web frontend and its dependencies
+    buildCommand: npm install -g pnpm && pnpm install && npx turbo run build --filter=web
+    staticPublishPath: apps/web/dist
     envVars:
       - key: NODE_ENV
         value: production
