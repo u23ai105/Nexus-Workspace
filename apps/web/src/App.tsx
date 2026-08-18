@@ -11,6 +11,9 @@ import './App.css'
 
 let BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:4000'
 if (BACKEND_URL && !BACKEND_URL.startsWith('http')) {
+  if (!BACKEND_URL.includes('.') && BACKEND_URL !== 'localhost') {
+    BACKEND_URL = `${BACKEND_URL}.onrender.com`;
+  }
   BACKEND_URL = `https://${BACKEND_URL}`
 }
 console.log('Nexus App Initializing - Backend URL:', BACKEND_URL);
