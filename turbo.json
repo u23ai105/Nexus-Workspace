@@ -3,6 +3,7 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
+      "env": ["VITE_BACKEND_URL", "NODE_ENV", "DATABASE_URL", "JWT_SECRET", "CLIENT_URL", "GEMINI_API_KEY"],
       "outputs": ["dist/**", "build/**"]
     },
     "lint": {
