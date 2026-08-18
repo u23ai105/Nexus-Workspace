@@ -13,6 +13,7 @@ let BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:4000'
 if (BACKEND_URL && !BACKEND_URL.startsWith('http')) {
   BACKEND_URL = `https://${BACKEND_URL}`
 }
+console.log('Nexus App Initializing - Backend URL:', BACKEND_URL);
 
 import { stringToColor } from './utils/colors';
 
