@@ -8,8 +8,8 @@ services:
     region: oregon # Or your preferred region (e.g., frankfurt, singapore)
     plan: free # Change to 'starter' for a production environment without 15-minute sleep
     # Remove rootDir to ensure Render has access to the full pnpm workspace
-    # Install all deps, then build just the server and its dependencies
-    buildCommand: pnpm install && npx turbo run build --filter=server
+    # Install all deps (forcing development mode so devDependencies like Vite/TS are installed), then build
+    buildCommand: NODE_ENV=development pnpm install && npx turbo run build --filter=server
     startCommand: cd apps/server && pnpm run start
     envVars:
       - key: PNPM_VERSION
@@ -34,8 +34,8 @@ services:
     name: nexus-web
     env: static
     # Remove rootDir to ensure Render has access to the full pnpm workspace
-    # Install all deps, then build just the web frontend and its dependencies
-    buildCommand: pnpm install && npx turbo run build --filter=web
+    # Install all deps (forcing development mode so devDependencies are installed), then build
+    buildCommand: NODE_ENV=development pnpm install && npx turbo run build --filter=web
     staticPublishPath: apps/web/dist
     envVars:
       - key: PNPM_VERSION
