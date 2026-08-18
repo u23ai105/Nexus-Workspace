@@ -1,0 +1,46 @@
+services:
+  # ---------------------------------------------
+  # Backend Web Service
+  # ---------------------------------------------
+  - type: web
+    name: nexus-server
+    env: node
+    region: oregon # Or your preferred region (e.g., frankfurt, singapore)
+    plan: free # Change to 'starter' for a production environment without 15-minute sleep
+    rootDir: apps/server
+    # Install pnpm, then install dependencies, then build typescript
+    buildCommand: npm install -g pnpm && pnpm install && pnpm run build
+    startCommand: pnpm run start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: DATABASE_URL
+        sync: false # Do not sync this value to Render, you will enter it securely in the dashboard
+      - key: JWT_SECRET
+        generateValue: true # Render will automatically generate a secure 256-bit secret string for you
+      - key: CLIENT_URL
+        value: https://nexus-web.onrender.com # Will be overridden after frontend deploy if name differs
+      - key: GEMINI_API_KEY
+        sync: false # Enter this securely in the Render dashboard
+
+  # ---------------------------------------------
+  # Frontend Static Site
+  # ---------------------------------------------
+  - type: web
+    name: nexus-web
+    env: static
+    region: oregon
+    rootDir: apps/web
+    # Install pnpm, then install dependencies, then build Vite site
+    buildCommand: npm install -g pnpm && pnpm install && pnpm run build
+    staticPublishPath: dist
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: VITE_API_URL
+        fromService:
+          type: web
+          name: nexus-server
+          property: host
