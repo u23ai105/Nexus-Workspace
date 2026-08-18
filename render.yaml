@@ -31,7 +31,6 @@ services:
   - type: web
     name: nexus-web
     env: static
-    region: oregon
     rootDir: apps/web
     # Install pnpm, then install dependencies, then build Vite site
     buildCommand: npm install -g pnpm && pnpm install && pnpm run build
