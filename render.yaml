@@ -8,10 +8,12 @@ services:
     region: oregon # Or your preferred region (e.g., frankfurt, singapore)
     plan: free # Change to 'starter' for a production environment without 15-minute sleep
     # Remove rootDir to ensure Render has access to the full pnpm workspace
-    # Install pnpm, install all deps, then build just the server and its dependencies
-    buildCommand: npm install -g pnpm && pnpm install && npx turbo run build --filter=server
+    # Install all deps, then build just the server and its dependencies
+    buildCommand: pnpm install && npx turbo run build --filter=server
     startCommand: cd apps/server && pnpm run start
     envVars:
+      - key: PNPM_VERSION
+        value: "9.5.0"
       - key: NODE_ENV
         value: production
       - key: PORT
@@ -32,10 +34,12 @@ services:
     name: nexus-web
     env: static
     # Remove rootDir to ensure Render has access to the full pnpm workspace
-    # Install pnpm, install all deps, then build just the web frontend and its dependencies
-    buildCommand: npm install -g pnpm && pnpm install && npx turbo run build --filter=web
+    # Install all deps, then build just the web frontend and its dependencies
+    buildCommand: pnpm install && npx turbo run build --filter=web
     staticPublishPath: apps/web/dist
     envVars:
+      - key: PNPM_VERSION
+        value: "9.5.0"
       - key: NODE_ENV
         value: production
       - key: VITE_API_URL
