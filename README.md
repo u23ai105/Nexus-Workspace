@@ -1,129 +1,294 @@
 <div align="center">
   <h1>🌌 Nexus Workspace</h1>
-  <p><strong>The Premium Collaborative Productivity Platform for Professionals & Students</strong></p>
-  <p><i>A unified workspace combining real-time rich text editing, AI, infinite canvases, and team communication into one seamless environment.</i></p>
+  <p><strong>Real-Time Collaborative Productivity Platform — Rich-Text CRDT Docs, Infinite Canvases, Context-Aware AI & Team Communication</strong></p>
 
-  <!-- Add your badges here later! Example: -->
-  <!-- <img src="https://img.shields.io/badge/React-19-blue" alt="React 19" /> -->
-  <!-- <img src="https://img.shields.io/badge/Node.js-Express-green" alt="Node.js" /> -->
+  <p>
+    <img src="https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react&logoColor=black" alt="React 19" />
+    <img src="https://img.shields.io/badge/TypeScript-Strict-3178C6?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript" />
+    <img src="https://img.shields.io/badge/Node.js-Express-339933?style=flat-square&logo=nodedotjs&logoColor=white" alt="Node.js & Express" />
+    <img src="https://img.shields.io/badge/CRDT-Yjs-FF6B6B?style=flat-square" alt="Yjs CRDT" />
+    <img src="https://img.shields.io/badge/Realtime-Socket.IO-010101?style=flat-square&logo=socketdotio&logoColor=white" alt="Socket.IO" />
+    <img src="https://img.shields.io/badge/Database-PostgreSQL%20%2B%20Prisma-2D3748?style=flat-square&logo=prisma&logoColor=white" alt="PostgreSQL & Prisma" />
+    <img src="https://img.shields.io/badge/AI-Google%20Gemini-8E75B2?style=flat-square&logo=googlegemini&logoColor=white" alt="Gemini AI" />
+    <img src="https://img.shields.io/badge/Monorepo-Turborepo%20%2B%20pnpm-EF4444?style=flat-square&logo=turborepo&logoColor=white" alt="Turborepo" />
+  </p>
 </div>
 
-<br />
+---
 
-## 📖 About The Project
+## 📖 Overview
 
-**Nexus Workspace** is built to replace the fragmented stack of Google Docs, Slack, Miro, and ChatGPT. It is a highly scalable, real-time productivity engine designed specifically for remote teams, agencies, and study groups. With enterprise-grade data persistence, Role-Based Access Control (RBAC), and deeply integrated AI, Nexus Workspace is built for the future of work.
+**Nexus Workspace** unifies real-time document collaboration, infinite spatial whiteboards, task tracking, workspace chat, direct messaging, file storage, and context-aware AI into a single multi-tenant workspace.
+
+Engineered as a **Turborepo + pnpm** monorepo, Nexus combines **Yjs CRDTs** over **Socket.IO** for conflict-free multiplayer editing, **Tldraw** for collaborative canvases, **PostgreSQL + Prisma** for durable state and RBAC governance, **Supabase Storage** for workspace media, and **Google Gemini** for inline and workspace-scoped AI assistance.
 
 ---
 
-## 🌟 The "Wow" Factor: Outstanding Features
+## ✨ Key Capabilities
 
-We go beyond standard text editing. Nexus Workspace includes cutting-edge tools to elevate collaboration:
+### ⚡ Real-Time Collaborative Editor (`TEXT`)
+- **Conflict-Free Editing (CRDTs):** Powered by **Tiptap v3** + **Yjs** (`y-protocols/sync` & `y-protocols/awareness`) over authenticated WebSockets.
+- **Live Presence & Authorship:** Real-time remote carets with deterministic, WCAG-contrasted user colors (DJB2 hash), persistent per-author text attribution (`AuthorHighlight`), and `beforeunload` cleanup to prevent ghost cursors.
+- **Durable Snapshotting & Memory Safety:** Debounced 3-second auto-saves and final room-teardown flushes persist binary `Y.Doc` updates (`yjsState`) and extracted plaintext (`textContent`) to PostgreSQL; empty document rooms automatically destroy in-memory `Y.Doc` and `Awareness` instances.
+- **Interactive Embedded Blocks:** Insert live **Kanban Boards**, **Live Polls**, **YouTube videos**, **X/Twitter embeds**, syntax-highlighted code blocks (`lowlight`), and drag-and-drop / clipboard images directly inside documents.
+- **Export & Zoom:** One-click **PDF** (`html2pdf.js`) and **Markdown** (`turndown`) export, plus `Ctrl/Cmd + Scroll` document zoom.
 
-- 🎨 **The "Infinite Canvas" Mode**: Toggle any document into a 2D spatial whiteboard. Drag text blocks, images, and PDFs around, connecting them with arrows for mind-mapping and brainstorming.
-- 🧩 **Interactive "Mini-App" Blocks**: Type `/` to insert powerful widgets directly into your text. Use `/poll` for collaborative voting, `/kanban` to embed a project board, or `/code` for live code execution.
-- 🧠 **Nexus Copilot (Context-Aware AI)**: Deeply integrated AI that doesn't just chat—it acts. Highlight text to "Extract Action Items", automatically generate `#tags` based on document context, and search across your entire workspace semantically.
-- 📽️ **"Follow Me" Presentation Mode**: Click a button to lock every other user's screen to your view. As you scroll and highlight text, their screens move synchronously. Perfect for remote teaching and client pitches.
+### 🎨 Infinite Whiteboard Canvas (`CANVAS`)
+- **Multiplayer Spatial Canvas:** Built with **Tldraw**, synchronized across collaborators in real time via Socket.IO `canvas-update` diffs with 2-second debounced JSON persistence and strict read-only mode for `VIEWER`s.
+- **Route-Level Code Splitting:** `TldrawCanvas` and `NexusEditor` are lazy-loaded via `React.lazy()` and `<Suspense>` to eliminate monolithic initial bundle overhead.
+
+### 🧠 Nexus Copilot (Context-Aware Gemini AI)
+- **Inline Floating Selection Menu (`/api/ai/prompt`):** Highlight any passage to **Summarize**, **Extract Tasks** (Markdown checklist), **Rewrite**, **Explain**, or **Ask**, then insert below or replace selection in one click.
+- **Workspace-Scoped AI Chat (`/api/ai/workspace-chat`):** Grounded in workspace documents, tasks, active document state, and live unsaved editor text via `ActiveDocumentContext`. Prioritizes `selectedText` (5k char cap) over live document content (50k char cap) and enforces server-side workspace/document authorization on every request.
+
+### 📽️ "Follow Me" Presentation Mode
+- **Normalized Viewport Sync:** Broadcasts proportional scroll position (`0.0`–`1.0`) via Yjs Awareness throttled with `requestAnimationFrame`, keeping followers aligned across different screen sizes.
+- **Smart Break-Out & Governance:** Manual follower scroll (`wheel`, `touchmove`, navigation keys) exits follow mode cleanly. Workspace-level signaling supports `OWNER > ADMIN > EDITOR` scroll takeover priority and `OWNER`/`ADMIN` audio mute controls.
+
+### 🛡️ Audited RBAC & Cryptographic Invite Links
+- **4-Tier Workspace Governance:** `OWNER`, `ADMIN`, `EDITOR`, and `VIEWER` enforced server-side via `getUserRole()` across every REST mutation and Socket.IO event, with strict cross-workspace ID scoping.
+- **Hardened Shareable Links:** 32-byte cryptographically random tokens (`crypto.randomBytes(32)`) stored exclusively as **SHA-256 hashes** (`WorkspaceInvite`). Links expire in 7 days, restrict default roles to `VIEWER` or `EDITOR`, support unauthenticated name-only previews, and auto-revoke previous active links upon regeneration.
+
+### 📁 Workspace Drive, Tasks, Chat & Inbox-Zero Notifications
+- **Hierarchical Folders & Trash Lifecycle:** Nested folders with cycle detection, favorites, smart `Untitled Document N` naming, Supabase Storage uploads (up to 10 MB), soft-delete (`isArchived`), safe root-restoration, and a daily midnight `node-cron` purge for trash older than 30 days.
+- **Action Items & Activity Feed:** Workspace tasks (`TODO` / `IN_PROGRESS` / `DONE`, priorities, due dates, assignees, document links) and a 7-day rolling `WorkspaceActivity` timeline.
+- **GitHub-Style Notification Center:** Strict `UNREAD` / `READ` / `DONE` (`archivedAt`) states, unified feed combining pending invites + personal notifications, `eventId` idempotency deduplication, cursor pagination, and real-time Socket.IO delivery (`user:{userId}`).
+- **Communication & Navigation:** Persistent workspace chat rooms, global 1-on-1 Direct Messages with unread badges and user search, and a `Cmd+K` Command Palette.
 
 ---
 
-## 🚀 Core Platform Features
+## 🏗️ System Architecture
 
-- **⚡ Real-Time Collaboration Engine**: Google Docs-style live editing with sub-millisecond cursor presence, powered by Yjs (CRDTs), Socket.io, and WebSockets.
-- **🛡️ Role-Based Access Control (RBAC)**: Assign users as `Owner`, `Admin`, `Editor`, or `Viewer`. Granular feature access ensures data governance for professional teams.
-- **💬 Workspace Communication**: Persistent, real-time global workspace chat channels alongside document-specific comment threads.
-- **☁️ Cloud Persistence & Dirty State Protection**: Edits are debounced and saved automatically to PostgreSQL. Active browser tabs are protected from accidental closure while saving.
-- **📁 Media & Workspace Drive**: Deep integration with Supabase Storage. Drag and drop images into the editor, or upload reference PDFs to your workspace drive.
-- **✨ Premium Glassmorphism UI**: A stunning, fluid user interface built with Tailwind CSS, featuring smooth micro-animations, customizable workspace covers, and dynamic grid/list views.
-- **📇 Member & Contact Management**: Search your contact book or invite new collaborators via email seamlessly.
+```mermaid
+flowchart TB
+    subgraph Client ["Frontend (apps/web — React 19 + Vite)"]
+        UI["Workspace Shell, Dashboard & Cmd+K"]
+        Editor["Tiptap v3 + Yjs + Awareness"]
+        Canvas["Tldraw Infinite Canvas (Lazy)"]
+        ChatUI["Workspace Chat, DMs & Notifications"]
+        CopilotUI["Nexus Copilot + ActiveDocumentContext"]
+    end
+
+    subgraph Server ["Backend (apps/server — Express + Socket.IO)"]
+        REST["REST API (JWT + Zod + RBAC)"]
+        WS["Socket.IO Gateway (JWT Auth)"]
+        YRoom["In-Memory Y.Doc & Awareness Store"]
+        NotifSvc["NotificationService (Idempotent)"]
+        Cron["node-cron (30-Day Trash Purge)"]
+    end
+
+    subgraph Data ["Data & External Services"]
+        PG[("PostgreSQL (Prisma ORM)\nMetadata, yjsState, RBAC, Tasks, Chat")]
+        Supa["Supabase Storage\nWorkspace Media & Uploads"]
+        Gemini["Google Gemini API\n(gemini-3.5-flash)"]
+    end
+
+    UI & CopilotUI -->|HTTPS + Bearer JWT / SWR| REST
+    Editor & Canvas & ChatUI <-->|WebSocket + Bearer JWT| WS
+    WS <--> YRoom
+    YRoom -->|3s Debounced Snapshot & Flush| PG
+    REST --> PG
+    REST --> NotifSvc
+    NotifSvc -->|notification:new| WS
+    REST -->|Multer Memory Buffer| Supa
+    REST -->|Bounded Context Prompt| Gemini
+    Cron --> PG
+```
 
 ---
 
-## 🏗️ Architecture & Tech Stack
+## 🛠️ Tech Stack
 
-Nexus Workspace is built as a highly scalable, containerized distributed system inside a **Turborepo** monorepo.
+| Layer | Technologies |
+| :--- | :--- |
+| **Monorepo & Tooling** | Turborepo, `pnpm` Workspaces (`pnpm@9.5.0`), TypeScript, Prettier, Oxlint, ESLint |
+| **Frontend (`apps/web`)** | React 19, Vite 8, React Router v7, SWR, Tailwind CSS, Radix UI / shadcn (`base-nova`), Lucide Icons, `cmdk` |
+| **Editor & Canvas** | Tiptap v3, Yjs, `y-protocols`, `lowlight` / `highlight.js`, Tldraw v5, `@xyflow/react`, `react-tweet`, `html2pdf.js`, `turndown` |
+| **Backend (`apps/server`)** | Node.js, Express 4, Socket.IO 4.8, `tsx`, Zod 4, Helmet, CORS, `bcrypt`, `jsonwebtoken`, `multer`, `node-cron` |
+| **Database & Storage** | PostgreSQL, Prisma ORM (`@nexus/database`), Supabase Storage (`@supabase/supabase-js`) |
+| **AI & Testing** | Google Generative AI SDK (`@google/generative-ai`), Vitest, Supertest |
+| **Deployment** | Render Blueprint (`render.yaml`) — Node Web Service + Static Site |
 
-### Frontend
-- **Framework**: React 19, TypeScript, Vite
-- **State & Data Fetching**: Zustand, TanStack (React) Query
-- **Styling**: Tailwind CSS (Glassmorphism design), Framer Motion
-- **Editor & Canvas**: Tiptap (ProseMirror), React Flow
-- **Real-Time**: Socket.io Client, Yjs
+---
 
-### Backend & Microservices
-- **Server**: Node.js, Express, TypeScript (running on ultra-fast `tsx` esbuild)
-- **Database**: PostgreSQL (Relational Data), Prisma ORM
-- **Cloud Storage**: Supabase (Postgres Pooler & Object Storage)
-- **Real-Time Server**: Socket.io
-- **AI**: OpenAI / Gemini APIs, Vercel AI SDK
+## 📁 Monorepo Structure
+
+```text
+nexus-workspace/
+├── apps/
+│   ├── server/                     # Express REST API & Socket.IO real-time engine
+│   │   └── src/
+│   │       ├── index.ts            # Server entry, route mounting, graceful shutdown & cron
+│   │       ├── socket.ts           # Yjs CRDT sync, Awareness, Presentation, Chat & DM sockets
+│   │       ├── controllers/        # auth, workspace, member, invite, document, file, ai, dm, message, notification, user
+│   │       ├── routes/             # Express routers including folders & tasks
+│   │       ├── middlewares/        # JWT authentication middleware
+│   │       ├── services/           # Idempotent NotificationService
+│   │       └── utils/              # Centralized RBAC helper (getUserRole)
+│   └── web/                        # React 19 + Vite SPA
+│       └── src/
+│           ├── App.tsx             # Auth shell, SWR workspace loader & React Router setup
+│           ├── components/
+│           │   ├── editor/         # CollaborativeEditor, NexusEditor, TldrawCanvas, AIFloatingMenu, KanbanBlock, PollBlock, TwitterBlock, ExportMenu, PresentationBanner
+│           │   ├── chat/           # GlobalChat (1-on-1 DMs & user search)
+│           │   └── home/           # Workspace switcher & creation view
+│           ├── contexts/           # ActiveDocumentContext (live AI context bridge)
+│           ├── hooks/              # useCollaboration, useContainerSize
+│           └── utils/              # Deterministic cursor colors (DJB2)
+├── packages/
+│   ├── database/                   # Shared Prisma schema (13 models), client & backfill scripts
+│   ├── shared/                     # Shared utilities/types across workspaces
+│   └── config-typescript/          # Shared base tsconfig
+├── docs/                           # System Design, ADRs, RBAC Audit & Release Report
+├── render.yaml                     # Render production blueprint
+├── turbo.json                      # Turborepo task pipeline
+└── pnpm-workspace.yaml
+```
+
+---
+
+## 🛡️ Role-Based Access Control (RBAC) Matrix
+
+| Action / Resource | `OWNER` | `ADMIN` | `EDITOR` | `VIEWER` |
+| :--- | :---: | :---: | :---: | :---: |
+| Rename Workspace / Empty Trash | ✅ | ✅ | ❌ | ❌ |
+| Delete Workspace | ✅ | ❌ | ❌ | ❌ |
+| Invite Members / Generate Invite Links | ✅ | ✅ | ❌ | ❌ |
+| Remove Members / Change Roles | ✅ | ✅* | ❌ | ❌ |
+| Create, Edit, Rename, Archive Docs & Folders | ✅ | ✅ | ✅ | ❌ |
+| Permanently Delete Docs, Folders & Files | ✅ | ✅ | ❌ | ❌ |
+| Upload & Rename Files | ✅ | ✅ | ✅ | ❌ |
+| Create, Assign, Update & Delete Tasks | ✅ | ✅ | ✅ | ❌ |
+| Start Presentation | ✅ | ✅ | ✅ | ❌ |
+| Mute Users in Presentation | ✅ | ✅ | ❌ | ❌ |
+| Workspace Chat & Follow Presentation | ✅ | ✅ | ✅ | ✅ |
+
+*\*Admins cannot modify, promote to, or remove `OWNER` or other `ADMIN` accounts. Shareable invite links can only grant `VIEWER` or `EDITOR` roles.*
+
+---
+
+## 🔌 API & Real-Time Events Reference
+
+### REST API Endpoints
+| Group | Endpoints |
+| :--- | :--- |
+| **Auth** | `POST /auth/register`, `POST /auth/login` |
+| **Workspaces** | `GET /api/workspaces`, `POST /api/workspaces`, `PATCH /api/workspaces/:id`, `DELETE /api/workspaces/:id`, `GET /api/workspaces/:workspaceId/activity`, `DELETE /api/workspaces/:workspaceId/trash` |
+| **Members & Invites** | `GET /api/workspaces/:workspaceId/members`, `POST .../members/invite`, `PATCH/DELETE .../members/:memberId`, `GET /api/invitations`, `PATCH /api/invitations/:workspaceId/{accept\|decline}`, `POST /api/workspaces/:workspaceId/invites`, `GET /api/workspaces/invites/preview/:token`, `POST /api/workspaces/invites/:token/join` |
+| **Documents** | `GET /api/documents`, `GET /api/documents/:id`, `POST /api/documents`, `PATCH /api/documents/:id`, `DELETE /api/documents/:id`, `POST/DELETE /api/documents/:id/favorite` |
+| **Folders** | `GET/POST /api/workspaces/:workspaceId/folders`, `PATCH/DELETE .../:folderId`, `PATCH .../:folderId/move` |
+| **Files** | `GET /api/files`, `POST /api/files/upload`, `PATCH /api/files/:id`, `DELETE /api/files/:id` |
+| **Tasks** | `GET/POST /api/workspaces/:workspaceId/tasks`, `PATCH/DELETE .../:taskId` |
+| **AI Copilot** | `POST /api/ai/prompt`, `POST /api/ai/workspace-chat` |
+| **Notifications** | `GET /api/notifications`, `GET /api/notifications/done`, `GET /api/notifications/unread-count`, `PATCH /api/notifications/{read-all\|archive-all}`, `PATCH /api/notifications/:id/{read\|archive}` |
+| **Chat, DMs & Users** | `GET /api/workspaces/:workspaceId/messages`, `GET /api/dms/summary`, `GET /api/dms/:otherUserId`, `PATCH /api/dms/:otherUserId/read`, `GET /api/users/search` |
+| **Health** | `GET /health` |
+
+### Socket.IO Events
+- **Document CRDT & Canvas:** `join-document`, `joined-document`, `sync`, `update`, `awareness`, `canvas-update`
+- **Presentation:** `workspace:join`, `presentation:start`, `presentation:stop`, `presentation:switch_doc`, `presentation:scroll`, `presentation:sync_scroll`, `presentation:takeover`, `presentation:mute_user`, `presentation:force_mute`
+- **Chat, DMs & Alerts:** `chat:join`, `chat:message`, `dm:join`, `dm:message`, `dm:notification`, `notification:new`, `new-invitation`, `workspace-removed`
 
 ---
 
 ## 🚀 Getting Started
 
 ### Prerequisites
-- Node.js (v20+)
-- PostgreSQL Database URL (e.g., Supabase)
-- pnpm (Package Manager)
+- **Node.js** `v20+`
+- **pnpm** `9.5.0+` (`corepack enable && corepack prepare pnpm@9.5.0 --activate`)
+- **PostgreSQL** database (e.g., Supabase Postgres)
+- **Supabase Storage** bucket (optional, required for file/image uploads)
+- **Google Gemini API Key** (optional, required for Nexus Copilot)
 
-### Installation
-
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/your-username/nexus-workspace.git
-   cd nexus-workspace
-   ```
-
-2. **Install dependencies (Monorepo)**
-   ```bash
-   pnpm install
-   ```
-
-3. **Set up environment variables**
-   Copy `.env.example` to `.env` in `apps/web`, `apps/server`, and `packages/database`. Add your PostgreSQL connection strings.
-
-4. **Sync the Database Schema**
-   ```bash
-   pnpm --filter @nexus/database run db:push
-   ```
-
-5. **Start the development servers**
-   ```bash
-   pnpm run dev
-   ```
-   *This starts the frontend on `localhost:5173` and the backend on `localhost:4000` with instant HMR.*
-
----
-
-## 📁 Project Structure (Turborepo / Monorepo)
-
-```text
-nexus-workspace/
-├── apps/
-│   ├── web/                 # React 19 Frontend (Vite)
-│   └── server/              # Node.js Express API & Socket.io server
-├── packages/
-│   ├── database/            # Prisma schema, migrations, and generated client
-│   ├── shared/              # Shared types, Zod schemas, constants
-│   ├── config-typescript/   # Shared tsconfig bases
-│   └── ui/                  # (Future) Shared React components
-└── docs/                    # Architecture Decision Records & Learning Journals
+### 1. Clone & Install
+```bash
+git clone [https://github.com/u23ai105/nexus-workspace.git](https://github.com/u23ai105/nexus-workspace.git)
+cd nexus-workspace
+pnpm install
 ```
 
+### 2. Configure Environment Variables
+
+Create `packages/database/.env` (used by Prisma CLI):
+```env
+DATABASE_URL="postgresql://USER:PASSWORD@HOST:6543/postgres?pgbouncer=true"
+DIRECT_URL="postgresql://USER:PASSWORD@HOST:5432/postgres"
+```
+
+Create `apps/server/.env`:
+```env
+PORT=4000
+NODE_ENV=development
+DATABASE_URL="postgresql://USER:PASSWORD@HOST:6543/postgres?pgbouncer=true"
+DIRECT_URL="postgresql://USER:PASSWORD@HOST:5432/postgres"
+JWT_SECRET="replace-with-a-strong-256-bit-secret"
+CLIENT_URL="http://localhost:5173"
+
+# Google Gemini (Nexus Copilot)
+GEMINI_API_KEY="your-gemini-api-key"
+
+# Supabase Object Storage (Workspace Drive & Editor Image Uploads)
+SUPABASE_URL="[https://your-project.supabase.co](https://your-project.supabase.co)"
+SUPABASE_SERVICE_ROLE_KEY="your-supabase-service-role-key"
+SUPABASE_STORAGE_BUCKET="nexus-storage"
+```
+
+Create `apps/web/.env`:
+```env
+VITE_BACKEND_URL="http://localhost:4000"
+```
+
+### 3. Push Database Schema & Generate Prisma Client
+```bash
+pnpm --filter @nexus/database run db:generate
+pnpm --filter @nexus/database run db:push
+```
+
+### 4. Start Development Servers
+```bash
+pnpm run dev
+```
+- **Web App:** `http://localhost:5173`
+- **API & Socket Server:** `http://localhost:4000` (`GET /health`)
+
 ---
 
-## 🗺️ Development Roadmap
+## 🧪 Scripts
 
-- [x] **Phase 1: Foundation** - Monorepo setup, Auth (JWT/OAuth), PostgreSQL schema, basic Dashboard and Workspace CRUD.
-- [x] **Phase 2: Real-Time Engine** - Tiptap integration, Yjs setup, Socket.io presence, live collaborative editing.
-- [x] **Phase 3: Persistence & Dashboard UI** - CRDT Database snapshotting, glassmorphism UI, dirty state protection, debounced saving.
-- [ ] **Phase 4: Identity & Access** - DB schema updates for RBAC, Workspace Invites, Contacts, and the Member Management UI.
-- [ ] **Phase 5: Media Infrastructure** - Supabase Storage integration, File uploading UI, and Tiptap Image extension.
-- [ ] **Phase 6: Communication & Mini-Apps** - Real-time Workspace Chat, Presence indicators, and Interactive Blocks (`/poll`, `/kanban`).
-- [ ] **Phase 7: The "Wow" Features** - Infinite Canvas Mode, "Follow Me" Presentation Mode, and Nexus Copilot (AI Integration).
+| Command | Description |
+| :--- | :--- |
+| `pnpm run dev` | Run all apps and shared packages in watch mode via Turborepo |
+| `pnpm run build` | Build `@nexus/database`, `@nexus/shared`, `server`, and `web` |
+| `pnpm run lint` | Run Oxlint (web) and ESLint (server) across the monorepo |
+| `pnpm run format` | Format TypeScript and Markdown files with Prettier |
+| `pnpm --filter server test` | Run backend Vitest + Supertest suite |
+
+---
+
+## ☁️ Production Deployment (Render)
+
+This repository ships with a [`render.yaml`](./render.yaml) blueprint that deploys:
+1. **`nexus-server`** (Node Web Service) — builds the monorepo workspace filtered to `server` and binds to `PORT=10000`.
+2. **`nexus-web`** (Static Site) — builds `apps/web/dist` and automatically wires `VITE_BACKEND_URL` to the `nexus-server` host.
+
+To deploy, connect the repository in Render as a **Blueprint** and supply the secret environment variables (`DATABASE_URL`, `DIRECT_URL`, `GEMINI_API_KEY`, and Supabase Storage credentials) in the Render dashboard.
+
+---
+
+## 📚 Architecture Documentation
+
+Detailed architectural decision records (ADRs) and audits live in [`docs/`](./docs):
+
+- [`NEXUS_SYSTEM_DESIGN.md`](./docs/NEXUS_SYSTEM_DESIGN.md) — Monorepo, SPA, Express monolith, SWR, and scaling trade-offs
+- [`NEXUS_REALTIME_ARCHITECTURE.md`](./docs/NEXUS_REALTIME_ARCHITECTURE.md) — Yjs CRDTs, Awareness lifecycle, and normalized "Follow Me" sync
+- [`NEXUS_AI_CONTEXT_ARCHITECTURE.md`](./docs/NEXUS_AI_CONTEXT_ARCHITECTURE.md) — `ActiveDocumentContext`, priority bounds, and server-side auth
+- [`NEXUS_RBAC_MATRIX.md`](./docs/NEXUS_RBAC_MATRIX.md) & [`NEXUS_RBAC_AUDIT.md`](./docs/NEXUS_RBAC_AUDIT.md) — Permission matrix and backend mutation audit
+- [`NEXUS_INVITE_ARCHITECTURE.md`](./docs/NEXUS_INVITE_ARCHITECTURE.md) — SHA-256 token hashing and invite lifecycle
+- [`NEXUS_NOTIFICATION_ARCHITECTURE.md`](./docs/NEXUS_NOTIFICATION_ARCHITECTURE.md) — Inbox-zero state machine and `eventId` deduplication
+- [`FINAL_RELEASE_REPORT.md`](./docs/FINAL_RELEASE_REPORT.md) — Bundle optimization, over-fetching fixes, and release audit
 
 ---
 
 ## 📄 License
 
-Distributed under the MIT License. See `LICENSE` for more information.
+Distributed under the **MIT License**.
